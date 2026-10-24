@@ -1,0 +1,86 @@
+@page "/inventory"
+@inject ApiClient Api
+
+<MudText Typo="Typo.h5" Class="mb-3">Inventory</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+
+<MudTable Items="_items" Dense="true" Hover="true" RowClassFunc="@((p, _) => p.IsLowStock ? "mud-theme-warning" : "")" Class="mb-4">
+    <HeaderContent>
+        <MudTh>SKU</MudTh><MudTh>Product</MudTh><MudTh>On hand</MudTh><MudTh>Reorder at</MudTh><MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Sku</MudTd><MudTd>@context.Name</MudTd><MudTd>@context.QuantityOnHand</MudTd><MudTd>@context.ReorderLevel</MudTd>
+        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Select(context)">Manage</MudButton></MudTd>
+    </RowTemplate>
+    <PagerContent><MudTablePager /></PagerContent>
+</MudTable>
+
+@if (_sel is not null)
+{
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-2">@_sel.Name — @_sel.QuantityOnHand on hand</MudText>
+        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+            <MudNumericField T="int" @bind-Value="_receiveQty" Min="0" Label="Receive qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
+            <MudTextField @bind-Value="_ref" Label="Reference (PO #)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Receive">Receive stock</MudButton>
+        </MudStack>
+        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+            <MudNumericField T="int" @bind-Value="_count" Min="0" Label="Counted qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
+            <MudTextField @bind-Value="_note" Label="Reason" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Adjust">Set count</MudButton>
+        </MudStack>
+        <MudTable Items="_moves" Dense="true">
+            <HeaderContent><MudTh>When</MudTh><MudTh>Type</MudTh><MudTh>Change</MudTh><MudTh>Balance</MudTh><MudTh>Ref / note</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd><MudTd>@context.Type</MudTd>
+                <MudTd>@context.QuantityChange</MudTd><MudTd>@context.BalanceAfter</MudTd><MudTd>@context.Reference @context.Note</MudTd>
+            </RowTemplate>
+            <PagerContent><MudTablePager /></PagerContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private List<ProductDto> _items = [];
+    private List<StockMovementDto> _moves = [];
+    private ProductDto? _sel;
+    private int _receiveQty, _count;
+    private string? _ref, _note, _error;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Run(Func<Task> action)
+    {
+        _error = null;
+        try { await action(); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private Task Load() => Run(async () => _items = await Api.ProductsAsync());
+
+    private Task Select(ProductDto p) => Run(async () =>
+    {
+        _sel = p; _count = p.QuantityOnHand;
+        _moves = await Api.MovementsAsync(p.Id);
+    });
+
+    private Task Receive() => Run(async () =>
+    {
+        _sel = await Api.ReceiveAsync(_sel!.Id, new ReceiveStockRequest(_receiveQty, _ref, null));
+        _receiveQty = 0; _ref = null; _count = _sel.QuantityOnHand;
+        await Refresh();
+    });
+
+    private Task Adjust() => Run(async () =>
+    {
+        _sel = await Api.AdjustAsync(_sel!.Id, new AdjustStockRequest(_count, _note));
+        _note = null;
+        await Refresh();
+    });
+
+    private async Task Refresh()
+    {
+        _moves = await Api.MovementsAsync(_sel!.Id);
+        _items = await Api.ProductsAsync();
+    }
+}

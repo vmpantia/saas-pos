@@ -1,0 +1,75 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject Session Session
+@inject NavigationManager Nav
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (!_ready)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (!Session.IsSignedIn)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">@Body</MudContainer>
+}
+else
+{
+    <MudLayout>
+        <MudAppBar Elevation="1">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => _drawer = !_drawer" />
+            <MudText Typo="Typo.h6">@Session.Current!.TenantName</MudText>
+            <MudSpacer />
+            <MudText Class="mr-3">@Session.Current.FullName (@Session.Current.Role)</MudText>
+            <MudButton Color="Color.Inherit" Variant="Variant.Outlined" OnClick="SignOut">Sign out</MudButton>
+        </MudAppBar>
+        <MudDrawer @bind-Open="_drawer" Elevation="1" ClipMode="DrawerClipMode.Always">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
+        </MudMainContent>
+    </MudLayout>
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _ready;
+    private bool _drawer = true;
+
+    protected override void OnInitialized() => Session.Changed += OnChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Session.RestoreAsync();
+        _ready = true;
+        Redirect();
+        StateHasChanged();
+    }
+
+    private void OnChanged()
+    {
+        if (_ready) Redirect();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Redirect()
+    {
+        var onLogin = Nav.ToBaseRelativePath(Nav.Uri).StartsWith("login", StringComparison.OrdinalIgnoreCase);
+        if (!Session.IsSignedIn && !onLogin) Nav.NavigateTo("login");
+        else if (Session.IsSignedIn && onLogin) Nav.NavigateTo("");
+    }
+
+    private Task SignOut() => Session.SignOutAsync();
+
+    public void Dispose() => Session.Changed -= OnChanged;
+}

@@ -1,0 +1,114 @@
+@page "/pos"
+@inject ApiClient Api
+
+<MudText Typo="Typo.h5" Class="mb-3">Point of Sale</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+
+<MudGrid>
+    <MudItem xs="12" lg="7">
+        <MudTextField @bind-Value="_term" Immediate="true" Label="Search name / SKU / scan barcode (Enter)"
+                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      OnKeyDown="OnKey" Class="mb-2" />
+        <MudPaper Style="max-height:62vh;overflow:auto">
+            <MudList T="string" Dense="true">
+                @foreach (var p in Filtered)
+                {
+                    <MudListItem OnClick="() => Add(p)" Disabled="@(p.QuantityOnHand <= 0)">
+                        <div class="d-flex justify-space-between align-center">
+                            <span>@p.Name <MudText Typo="Typo.caption" Inline="true">@p.Sku</MudText></span>
+                            <span>
+                                @p.Price.ToString("N2")
+                                <MudChip T="string" Size="Size.Small" Color="@(p.IsLowStock ? Color.Error : Color.Default)">@p.QuantityOnHand</MudChip>
+                            </span>
+                        </div>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" lg="5">
+        <MudPaper Class="pa-3">
+            <MudText Typo="Typo.h6">Cart</MudText>
+            @foreach (var l in _cart)
+            {
+                <div class="d-flex align-center my-1">
+                    <MudText Class="flex-grow-1">@l.Product.Name</MudText>
+                    <MudNumericField T="int" @bind-Value="l.Quantity" Min="1" Max="l.Product.QuantityOnHand" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width:110px" />
+                    <MudText Class="mx-2" Style="min-width:70px;text-align:right">@((l.Product.Price * l.Quantity).ToString("N2"))</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="() => _cart.Remove(l)" />
+                </div>
+            }
+            <MudDivider Class="my-2" />
+            <MudNumericField T="decimal" @bind-Value="_discount" Min="0" Label="Discount" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <div class="d-flex justify-space-between my-2"><MudText Typo="Typo.h5">Total</MudText><MudText Typo="Typo.h5">@Total.ToString("N2")</MudText></div>
+            <MudSelect T="PaymentMethod" @bind-Value="_method" Label="Payment" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var m in Enum.GetValues<PaymentMethod>()) { <MudSelectItem T="PaymentMethod" Value="m">@m</MudSelectItem> }
+            </MudSelect>
+            <MudNumericField T="decimal" @bind-Value="_tendered" Min="0" Label="Amount tendered" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
+            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Size="Size.Large"
+                       Disabled="@(_cart.Count == 0 || _busy)" OnClick="Checkout">Charge</MudButton>
+        </MudPaper>
+        @if (_receipt is not null)
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-3">
+                Sale <strong>@_receipt.ReceiptNumber</strong> complete. Total @_receipt.Total.ToString("N2"), change <strong>@_receipt.Change.ToString("N2")</strong>.
+            </MudAlert>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    private class Line { public ProductDto Product { get; set; } = default!; public int Quantity { get; set; } = 1; }
+
+    private List<ProductDto> _products = [];
+    private readonly List<Line> _cart = [];
+    private string _term = "";
+    private decimal _discount, _tendered;
+    private PaymentMethod _method = PaymentMethod.Cash;
+    private SaleDto? _receipt;
+    private string? _error;
+    private bool _busy;
+
+    private IEnumerable<ProductDto> Filtered => _products.Where(p =>
+        string.IsNullOrWhiteSpace(_term) || p.Name.Contains(_term, StringComparison.OrdinalIgnoreCase)
+        || p.Sku.Contains(_term, StringComparison.OrdinalIgnoreCase) || p.Barcode == _term.Trim());
+
+    private decimal Total => Math.Max(0, _cart.Sum(l => l.Product.Price * l.Quantity) - _discount);
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        try { _products = await Api.ProductsAsync(null, true); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter") return;
+        var t = _term.Trim();
+        var hit = _products.FirstOrDefault(p => p.Barcode == t || p.Sku.Equals(t, StringComparison.OrdinalIgnoreCase));
+        if (hit is not null) { Add(hit); _term = ""; }
+    }
+
+    private void Add(ProductDto p)
+    {
+        var line = _cart.FirstOrDefault(l => l.Product.Id == p.Id);
+        if (line is null) _cart.Add(new Line { Product = p });
+        else if (line.Quantity < p.QuantityOnHand) line.Quantity++;
+    }
+
+    private async Task Checkout()
+    {
+        _busy = true; _error = null; _receipt = null;
+        try
+        {
+            _receipt = await Api.CheckoutAsync(new CheckoutRequest(
+                _cart.Select(l => new SaleLineRequest(l.Product.Id, l.Quantity)).ToList(), _method, _tendered, _discount));
+            _cart.Clear(); _discount = 0; _tendered = 0;
+            await Load();
+        }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+}

@@ -1,0 +1,51 @@
+@page "/"
+@inject ApiClient Api
+@inject Session Session
+@inject NavigationManager Nav
+
+<MudText Typo="Typo.h5" Class="mb-1">Dashboard</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">Last 30 days</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+@if (_s is not null)
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Sales</MudText><MudText Typo="Typo.h4">@_s.SaleCount</MudText></MudPaper></MudItem>
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Revenue</MudText><MudText Typo="Typo.h4">@_s.Revenue.ToString("N2")</MudText></MudPaper></MudItem>
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Gross profit</MudText><MudText Typo="Typo.h4">@_s.Profit.ToString("N2")</MudText></MudPaper></MudItem>
+    </MudGrid>
+    <MudTable Items="_s.TopProducts" Dense="true" Class="mb-4">
+        <ToolBarContent><MudText Typo="Typo.h6">Top products</MudText></ToolBarContent>
+        <HeaderContent>
+            <MudTh>Product</MudTh><MudTh Style="text-align:right">Qty</MudTh><MudTh Style="text-align:right">Revenue</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductName</MudTd>
+            <MudTd Style="text-align:right">@context.QuantitySold</MudTd>
+            <MudTd Style="text-align:right">@context.Revenue.ToString("N2")</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+@if (_low.Count > 0)
+{
+    <MudAlert Severity="Severity.Warning">
+        <MudText Typo="Typo.subtitle2">Low stock</MudText>
+        @foreach (var p in _low) { <div>@p.Name — @p.QuantityOnHand left (reorder at @p.ReorderLevel)</div> }
+    </MudAlert>
+}
+
+@code {
+    private SalesSummaryDto? _s;
+    private List<ProductDto> _low = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsManager) { Nav.NavigateTo("pos"); return; }
+        try
+        {
+            _s = await Api.SummaryAsync(DateTime.UtcNow.Date.AddDays(-30), DateTime.UtcNow.AddDays(1));
+            _low = (await Api.ProductsAsync(null, true)).Where(p => p.IsLowStock).ToList();
+        }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+}

@@ -1,0 +1,57 @@
+@page "/sales"
+@inject ApiClient Api
+@inject Session Session
+
+<MudText Typo="Typo.h5" Class="mb-3">Sales</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+
+<MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+    <MudDatePicker @bind-Date="_from" Label="From" Variant="Variant.Outlined" Margin="Margin.Dense" />
+    <MudDatePicker @bind-Date="_to" Label="To" Variant="Variant.Outlined" Margin="Margin.Dense" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Load">Search</MudButton>
+</MudStack>
+
+<MudTable Items="_sales" Dense="true" Hover="true">
+    <HeaderContent>
+        <MudTh>Receipt</MudTh><MudTh>Date</MudTh><MudTh>Items</MudTh><MudTh>Payment</MudTh><MudTh>Total</MudTh><MudTh>Status</MudTh><MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.ReceiptNumber</MudTd>
+        <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+        <MudTd>@string.Join(", ", context.Items.Select(i => $"{i.Quantity} × {i.ProductName}"))</MudTd>
+        <MudTd>@context.PaymentMethod</MudTd>
+        <MudTd>@context.Total.ToString("N2")</MudTd>
+        <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.Status == SaleStatus.Voided ? Color.Error : Color.Success)">@context.Status</MudChip></MudTd>
+        <MudTd>
+            @if (Session.IsManager && context.Status == SaleStatus.Completed)
+            {
+                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" OnClick="() => Void(context)">Void</MudButton>
+            }
+        </MudTd>
+    </RowTemplate>
+    <PagerContent><MudTablePager /></PagerContent>
+</MudTable>
+
+@code {
+    private DateTime? _from = DateTime.Today, _to = DateTime.Today;
+    private List<SaleDto> _sales = [];
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _error = null;
+        var from = (_from ?? DateTime.Today).Date;
+        var to = (_to ?? DateTime.Today).Date;
+        try { _sales = await Api.SalesAsync(from.ToUniversalTime(), to.AddDays(1).ToUniversalTime()); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private async Task Void(SaleDto s)
+    {
+        try { await Api.VoidAsync(s.Id); await Load(); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+}
+

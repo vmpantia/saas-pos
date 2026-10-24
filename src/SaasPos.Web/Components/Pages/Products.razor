@@ -1,0 +1,115 @@
+@page "/products"
+@inject ApiClient Api
+
+<MudText Typo="Typo.h5" Class="mb-3">Products</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-2">@(_editId is null ? "New product" : "Edit product")</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="4" md="2"><MudTextField @bind-Value="_f.Sku" Label="SKU" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="12" sm="8" md="3"><MudTextField @bind-Value="_f.Name" Label="Name" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_f.Barcode" Label="Barcode" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="Guid" @bind-Value="_f.CategoryId" Label="Category" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="Guid" Value="Guid.Empty">— none —</MudSelectItem>
+                @foreach (var c in _cats) { <MudSelectItem T="Guid" Value="c.Id">@c.Name</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="2"><MudNumericField T="decimal" @bind-Value="_f.Price" Min="0" Label="Price" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="6" md="2"><MudNumericField T="decimal" @bind-Value="_f.Cost" Min="0" Label="Cost" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        <MudItem xs="6" md="2"><MudNumericField T="int" @bind-Value="_f.ReorderLevel" Min="0" Label="Reorder level" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        @if (_editId is null)
+        {
+            <MudItem xs="6" md="2"><MudNumericField T="int" @bind-Value="_f.InitialStock" Min="0" Label="Initial stock" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+        }
+        <MudItem xs="12" md="4" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Class="mr-2">Save</MudButton>
+            @if (_editId is not null) { <MudButton OnClick="Reset">Cancel</MudButton> }
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Class="mt-3" AlignItems="AlignItems.Center">
+        <MudTextField @bind-Value="_newCat" Label="New category" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:260px" />
+        <MudButton Variant="Variant.Outlined" OnClick="AddCategory">Add category</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudTable Items="_items" Dense="true" Hover="true" Filter="Match">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="_search" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="max-width:260px" />
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>SKU</MudTh><MudTh>Name</MudTh><MudTh>Price</MudTh><MudTh>Cost</MudTh><MudTh>Stock</MudTh><MudTh>Status</MudTh><MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Sku</MudTd>
+        <MudTd>@context.Name</MudTd>
+        <MudTd>@context.Price.ToString("N2")</MudTd>
+        <MudTd>@context.Cost.ToString("N2")</MudTd>
+        <MudTd>@context.QuantityOnHand @if (context.IsLowStock) { <MudChip T="string" Size="Size.Small" Color="Color.Error">low</MudChip> }</MudTd>
+        <MudTd>@(context.IsActive ? "Active" : "Inactive")</MudTd>
+        <MudTd>
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Edit(context)">Edit</MudButton>
+            <MudButton Size="Size.Small" OnClick="() => Toggle(context)">@(context.IsActive ? "Deactivate" : "Activate")</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent><MudTablePager /></PagerContent>
+</MudTable>
+
+@code {
+    private class Form
+    {
+        public string Sku { get; set; } = ""; public string Name { get; set; } = ""; public string? Barcode { get; set; }
+        public Guid CategoryId { get; set; } public decimal Price { get; set; } public decimal Cost { get; set; }
+        public int ReorderLevel { get; set; } public int InitialStock { get; set; }
+    }
+
+    private List<ProductDto> _items = [];
+    private List<CategoryDto> _cats = [];
+    private Form _f = new();
+    private Guid? _editId;
+    private string _newCat = "", _search = "";
+    private string? _error;
+
+    private bool Match(ProductDto p) => string.IsNullOrWhiteSpace(_search)
+        || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase);
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Run(Func<Task> action)
+    {
+        _error = null;
+        try { await action(); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private Task Load() => Run(async () => { _items = await Api.ProductsAsync(); _cats = await Api.CategoriesAsync(); });
+
+    private Task Save() => Run(async () =>
+    {
+        var r = new ProductRequest(_f.Sku, _f.Name, _f.Price, _f.Cost, _f.ReorderLevel, _f.Barcode,
+            _f.CategoryId == Guid.Empty ? null : _f.CategoryId, _f.InitialStock);
+        if (_editId is null) await Api.CreateProductAsync(r); else await Api.UpdateProductAsync(_editId.Value, r);
+        Reset();
+        await Load();
+    });
+
+    private void Edit(ProductDto p)
+    {
+        _editId = p.Id;
+        _f = new Form { Sku = p.Sku, Name = p.Name, Barcode = p.Barcode, CategoryId = p.CategoryId ?? Guid.Empty,
+            Price = p.Price, Cost = p.Cost, ReorderLevel = p.ReorderLevel };
+    }
+
+    private void Reset() { _editId = null; _f = new(); }
+
+    private Task Toggle(ProductDto p) => Run(async () => { await Api.SetActiveAsync(p.Id, !p.IsActive); await Load(); });
+
+    private Task AddCategory() => Run(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(_newCat)) return;
+        await Api.CreateCategoryAsync(_newCat); _newCat = ""; await Load();
+    });
+}
