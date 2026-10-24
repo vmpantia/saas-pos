@@ -1,51 +1,107 @@
 @page "/inventory"
 @inject ApiClient Api
+@inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h5" Class="mb-3">Inventory</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+<MudText Typo="Typo.h5" Class="page-title">Inventory</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Track stock levels and movements</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
 
-<MudTable Items="_items" Dense="true" Hover="true" RowClassFunc="@((p, _) => p.IsLowStock ? "mud-theme-warning" : "")" Class="mb-4">
-    <HeaderContent>
-        <MudTh>SKU</MudTh><MudTh>Product</MudTh><MudTh>On hand</MudTh><MudTh>Reorder at</MudTh><MudTh></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd>@context.Sku</MudTd><MudTd>@context.Name</MudTd><MudTd>@context.QuantityOnHand</MudTd><MudTd>@context.ReorderLevel</MudTd>
-        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Select(context)">Manage</MudButton></MudTd>
-    </RowTemplate>
-    <PagerContent><MudTablePager /></PagerContent>
-</MudTable>
-
-@if (_sel is not null)
-{
-    <MudPaper Class="pa-4">
-        <MudText Typo="Typo.h6" Class="mb-2">@_sel.Name — @_sel.QuantityOnHand on hand</MudText>
-        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-            <MudNumericField T="int" @bind-Value="_receiveQty" Min="0" Label="Receive qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
-            <MudTextField @bind-Value="_ref" Label="Reference (PO #)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
-            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Receive">Receive stock</MudButton>
-        </MudStack>
-        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-            <MudNumericField T="int" @bind-Value="_count" Min="0" Label="Counted qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
-            <MudTextField @bind-Value="_note" Label="Reason" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
-            <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Adjust">Set count</MudButton>
-        </MudStack>
-        <MudTable Items="_moves" Dense="true">
-            <HeaderContent><MudTh>When</MudTh><MudTh>Type</MudTh><MudTh>Change</MudTh><MudTh>Balance</MudTh><MudTh>Ref / note</MudTh></HeaderContent>
+<MudGrid>
+    <MudItem xs="12" lg="@(_sel is null ? 12 : 6)">
+        <MudTable Items="_items" Hover="true" Elevation="0" Filter="Match" Breakpoint="Breakpoint.Sm" OnRowClick="@((TableRowClickEventArgs<ProductDto> a) => Select(a.Item!))">
+            <ToolBarContent>
+                <MudTextField @bind-Value="_search" Placeholder="Search…" Adornment="Adornment.Start" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="max-width:280px" />
+                <MudSpacer />
+                <MudSwitch T="bool" @bind-Value="_lowOnly" Label="Low stock only" Color="Color.Warning" />
+            </ToolBarContent>
+            <HeaderContent><MudTh>Product</MudTh><MudTh Style="min-width:180px">Stock level</MudTh><MudTh>On hand</MudTh></HeaderContent>
             <RowTemplate>
-                <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd><MudTd>@context.Type</MudTd>
-                <MudTd>@context.QuantityChange</MudTd><MudTd>@context.BalanceAfter</MudTd><MudTd>@context.Reference @context.Note</MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2" Style="font-weight:600">@context.Name</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Sku</MudText>
+                </MudTd>
+                <MudTd><MudProgressLinear Value="@Level(context)" Max="100" Rounded="true" Color="@(context.QuantityOnHand == 0 ? Color.Error : context.IsLowStock ? Color.Warning : Color.Success)" /></MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(context.QuantityOnHand == 0 ? Color.Error : context.IsLowStock ? Color.Warning : Color.Success)">
+                        @context.QuantityOnHand / reorder @context.ReorderLevel
+                    </MudChip>
+                </MudTd>
             </RowTemplate>
             <PagerContent><MudTablePager /></PagerContent>
         </MudTable>
-    </MudPaper>
-}
+    </MudItem>
+
+    @if (_sel is not null)
+    {
+        <MudItem xs="12" lg="6">
+            <div class="soft-card pa-5">
+                <div class="d-flex align-center mb-1">
+                    <div>
+                        <MudText Typo="Typo.h6">@_sel.Name</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@_sel.Sku · @_sel.QuantityOnHand on hand</MudText>
+                    </div>
+                    <MudSpacer />
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _sel = null" />
+                </div>
+                <MudDivider Class="my-3" />
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Receive stock</MudText>
+                <div class="d-flex gap-2 mb-4">
+                    <MudNumericField T="int" @bind-Value="_receiveQty" Min="0" Label="Quantity" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="max-width:130px" />
+                    <MudTextField @bind-Value="_ref" Label="Reference (PO #)" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Receive">Receive</MudButton>
+                </div>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Stock count</MudText>
+                <div class="d-flex gap-2 mb-4">
+                    <MudNumericField T="int" @bind-Value="_count" Min="0" Label="Counted" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="max-width:130px" />
+                    <MudTextField @bind-Value="_note" Label="Reason" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Adjust">Set count</MudButton>
+                </div>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Movement history</MudText>
+                <MudTable Items="_moves" Dense="true" Elevation="0">
+                    <HeaderContent><MudTh>When</MudTh><MudTh>Type</MudTh><MudTh>Change</MudTh><MudTh>Balance</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@TypeColor(context.Type)">@context.Type</MudChip></MudTd>
+                        <MudTd Style="@($"font-weight:600;color:var(--mud-palette-{(context.QuantityChange < 0 ? "error" : "success")})")">@(context.QuantityChange > 0 ? "+" : "")@context.QuantityChange</MudTd>
+                        <MudTd>@context.BalanceAfter</MudTd>
+                    </RowTemplate>
+                    <PagerContent><MudTablePager /></PagerContent>
+                </MudTable>
+            </div>
+        </MudItem>
+    }
+</MudGrid>
 
 @code {
     private List<ProductDto> _items = [];
     private List<StockMovementDto> _moves = [];
     private ProductDto? _sel;
     private int _receiveQty, _count;
+    private bool _lowOnly;
     private string? _ref, _note, _error;
+    private string _search = "";
+
+    private bool Match(ProductDto p) =>
+        (!_lowOnly || p.IsLowStock) &&
+        (string.IsNullOrWhiteSpace(_search) || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private static double Level(ProductDto p)
+    {
+        var target = Math.Max(1, p.ReorderLevel * 3);
+        return Math.Min(100, p.QuantityOnHand * 100.0 / target);
+    }
+
+    private static Color TypeColor(StockMovementType t) => t switch
+    {
+        StockMovementType.Purchase => Color.Success,
+        StockMovementType.Sale => Color.Info,
+        StockMovementType.Return => Color.Secondary,
+        _ => Color.Warning
+    };
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -68,6 +124,7 @@
     {
         _sel = await Api.ReceiveAsync(_sel!.Id, new ReceiveStockRequest(_receiveQty, _ref, null));
         _receiveQty = 0; _ref = null; _count = _sel.QuantityOnHand;
+        Snackbar.Add("Stock received", Severity.Success);
         await Refresh();
     });
 
@@ -75,6 +132,7 @@
     {
         _sel = await Api.AdjustAsync(_sel!.Id, new AdjustStockRequest(_count, _note));
         _note = null;
+        Snackbar.Add("Stock count updated", Severity.Success);
         await Refresh();
     });
 

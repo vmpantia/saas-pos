@@ -2,20 +2,32 @@
 @inject ApiClient Api
 @inject Session Session
 
-<MudPaper Class="pa-6">
-    <MudText Typo="Typo.h5" Class="mb-4">SaaS POS — Sign in</MudText>
-    <MudTextField @bind-Value="_tenant" Label="Store code" Variant="Variant.Outlined" Class="mb-2" />
-    <MudTextField @bind-Value="_user" Label="Username" Variant="Variant.Outlined" Class="mb-2" />
-    <MudTextField @bind-Value="_pass" Label="Password" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-3"
-                  OnKeyDown="OnKey" />
-    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="Submit">Sign in</MudButton>
-</MudPaper>
+<div class="auth-card soft-card">
+    <div class="auth-logo"><MudIcon Icon="@Icons.Material.Filled.PointOfSale" Style="color:#fff" Size="Size.Large" /></div>
+    <MudText Typo="Typo.h5" Class="page-title">Welcome back</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">Sign in to your store to continue</MudText>
+
+    <MudTextField @bind-Value="_tenant" Label="Store code" Variant="Variant.Outlined" Class="mb-3"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storefront" />
+    <MudTextField @bind-Value="_user" Label="Username" Variant="Variant.Outlined" Class="mb-3"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+    <MudTextField @bind-Value="_pass" Label="Password" Variant="Variant.Outlined" Class="mb-4"
+                  InputType="@(_show ? InputType.Text : InputType.Password)" OnKeyDown="OnKey"
+                  Adornment="Adornment.End" AdornmentIcon="@(_show ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                  OnAdornmentClick="() => _show = !_show" />
+
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-4">@_error</MudAlert> }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="_busy" OnClick="Submit">
+        @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+        Sign in
+    </MudButton>
+</div>
 
 @code {
     private string _tenant = "", _user = "", _pass = "";
     private string? _error;
-    private bool _busy;
+    private bool _busy, _show;
 
     private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await Submit(); }
 

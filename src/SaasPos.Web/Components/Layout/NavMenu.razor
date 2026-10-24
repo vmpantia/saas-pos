@@ -1,12 +1,14 @@
 @inject Session Session
 
 <MudNavMenu>
+    <div class="nav-caption">Sell</div>
     <MudNavLink Href="pos" Icon="@Icons.Material.Filled.PointOfSale">Point of Sale</MudNavLink>
     <MudNavLink Href="sales" Icon="@Icons.Material.Filled.Receipt">Sales</MudNavLink>
     @if (Session.IsManager)
     {
+        <div class="nav-caption">Manage</div>
         <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-        <MudNavLink Href="products" Icon="@Icons.Material.Filled.Inventory2">Products</MudNavLink>
+        <MudNavLink Href="products" Icon="@Icons.Material.Filled.Category">Products</MudNavLink>
         <MudNavLink Href="inventory" Icon="@Icons.Material.Filled.Warehouse">Inventory</MudNavLink>
     }
 </MudNavMenu>
