@@ -3,40 +3,85 @@
 @inject Session Session
 @inject NavigationManager Nav
 
-<MudText Typo="Typo.h5" Class="mb-1">Dashboard</MudText>
-<MudText Typo="Typo.body2" Class="mb-4">Last 30 days</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
-@if (_s is not null)
+<MudText Typo="Typo.h5" Class="page-title">Dashboard</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">Performance over the last 30 days</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert> }
+
+@if (_s is null && _error is null)
 {
-    <MudGrid Class="mb-4">
-        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Sales</MudText><MudText Typo="Typo.h4">@_s.SaleCount</MudText></MudPaper></MudItem>
-        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Revenue</MudText><MudText Typo="Typo.h4">@_s.Revenue.ToString("N2")</MudText></MudPaper></MudItem>
-        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Gross profit</MudText><MudText Typo="Typo.h4">@_s.Profit.ToString("N2")</MudText></MudPaper></MudItem>
-    </MudGrid>
-    <MudTable Items="_s.TopProducts" Dense="true" Class="mb-4">
-        <ToolBarContent><MudText Typo="Typo.h6">Top products</MudText></ToolBarContent>
-        <HeaderContent>
-            <MudTh>Product</MudTh><MudTh Style="text-align:right">Qty</MudTh><MudTh Style="text-align:right">Revenue</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.ProductName</MudTd>
-            <MudTd Style="text-align:right">@context.QuantitySold</MudTd>
-            <MudTd Style="text-align:right">@context.Revenue.ToString("N2")</MudTd>
-        </RowTemplate>
-    </MudTable>
+    <MudProgressLinear Indeterminate="true" />
 }
-@if (_low.Count > 0)
+else if (_s is not null)
 {
-    <MudAlert Severity="Severity.Warning">
-        <MudText Typo="Typo.subtitle2">Low stock</MudText>
-        @foreach (var p in _low) { <div>@p.Name — @p.QuantityOnHand left (reorder at @p.ReorderLevel)</div> }
-    </MudAlert>
+    <MudGrid Class="mb-2">
+        <MudItem xs="12" md="4">
+            <div class="soft-card kpi">
+                <div class="kpi-icon" style="background:rgba(99,102,241,.12)"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Primary" /></div>
+                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Sales</MudText><div class="kpi-value">@_s.SaleCount</div></div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <div class="soft-card kpi">
+                <div class="kpi-icon" style="background:rgba(14,165,233,.12)"><MudIcon Icon="@Icons.Material.Filled.Payments" Color="Color.Secondary" /></div>
+                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Revenue</MudText><div class="kpi-value">@_s.Revenue.ToString("N2")</div></div>
+            </div>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <div class="soft-card kpi">
+                <div class="kpi-icon" style="background:rgba(16,185,129,.12)"><MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" /></div>
+                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Gross profit</MudText><div class="kpi-value">@_s.Profit.ToString("N2")</div></div>
+            </div>
+        </MudItem>
+
+        <MudItem xs="12" lg="7">
+            <div class="soft-card pa-5">
+                <MudText Typo="Typo.h6" Class="mb-4">Top products</MudText>
+                @if (_s.TopProducts.Count == 0) { <MudText Color="Color.Secondary">No sales in this period yet.</MudText> }
+                @foreach (var t in _s.TopProducts)
+                {
+                    <div class="mb-4">
+                        <div class="d-flex justify-space-between mb-1">
+                            <MudText Typo="Typo.body2" Style="font-weight:600">@t.ProductName</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@t.QuantitySold sold · @t.Revenue.ToString("N2")</MudText>
+                        </div>
+                        <MudProgressLinear Value="@Share(t)" Max="100" Color="Color.Primary" Rounded="true" Size="Size.Medium" />
+                    </div>
+                }
+            </div>
+        </MudItem>
+        <MudItem xs="12" lg="5">
+            <div class="soft-card pa-5">
+                <div class="d-flex align-center mb-3">
+                    <MudText Typo="Typo.h6">Low stock</MudText>
+                    <MudSpacer />
+                    @if (_low.Count > 0) { <MudChip T="string" Size="Size.Small" Color="Color.Error">@_low.Count</MudChip> }
+                </div>
+                @if (_low.Count == 0) { <MudText Color="Color.Secondary">All products are well stocked 🎉</MudText> }
+                @foreach (var p in _low)
+                {
+                    <div class="d-flex justify-space-between align-center py-2" style="border-bottom:1px solid var(--mud-palette-lines-default)">
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight:600">@p.Name</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Reorder at @p.ReorderLevel</MudText>
+                        </div>
+                        <MudChip T="string" Size="Size.Small" Color="@(p.QuantityOnHand == 0 ? Color.Error : Color.Warning)">@p.QuantityOnHand left</MudChip>
+                    </div>
+                }
+            </div>
+        </MudItem>
+    </MudGrid>
 }
 
 @code {
     private SalesSummaryDto? _s;
     private List<ProductDto> _low = [];
     private string? _error;
+
+    private double Share(TopProductDto t)
+    {
+        var max = _s!.TopProducts.Max(x => x.Revenue);
+        return max == 0 ? 0 : (double)(t.Revenue / max * 100);
+    }
 
     protected override async Task OnInitializedAsync()
     {

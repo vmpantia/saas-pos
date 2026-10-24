@@ -1,34 +1,39 @@
 @page "/sales"
 @inject ApiClient Api
 @inject Session Session
+@inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h5" Class="mb-3">Sales</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+<MudText Typo="Typo.h5" Class="page-title">Sales</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Browse and manage completed transactions</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
 
-<MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-    <MudDatePicker @bind-Date="_from" Label="From" Variant="Variant.Outlined" Margin="Margin.Dense" />
-    <MudDatePicker @bind-Date="_to" Label="To" Variant="Variant.Outlined" Margin="Margin.Dense" />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Load">Search</MudButton>
-</MudStack>
+<div class="soft-card pa-3 mb-4 d-flex align-center flex-wrap" style="gap:12px">
+    <MudDatePicker @bind-Date="_from" Label="From" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px" />
+    <MudDatePicker @bind-Date="_to" Label="To" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" OnClick="Load">Search</MudButton>
+    <MudSpacer />
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@_sales.Count sales · <strong>@_sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total).ToString("N2")</strong></MudText>
+</div>
 
-<MudTable Items="_sales" Dense="true" Hover="true">
+<MudTable Items="_sales" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
     <HeaderContent>
         <MudTh>Receipt</MudTh><MudTh>Date</MudTh><MudTh>Items</MudTh><MudTh>Payment</MudTh><MudTh>Total</MudTh><MudTh>Status</MudTh><MudTh></MudTh>
     </HeaderContent>
     <RowTemplate>
-        <MudTd>@context.ReceiptNumber</MudTd>
+        <MudTd Style="font-weight:600">@context.ReceiptNumber</MudTd>
         <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
-        <MudTd>@string.Join(", ", context.Items.Select(i => $"{i.Quantity} × {i.ProductName}"))</MudTd>
+        <MudTd><MudText Typo="Typo.caption" Color="Color.Secondary">@string.Join(", ", context.Items.Select(i => $"{i.Quantity} × {i.ProductName}"))</MudText></MudTd>
         <MudTd>@context.PaymentMethod</MudTd>
-        <MudTd>@context.Total.ToString("N2")</MudTd>
-        <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.Status == SaleStatus.Voided ? Color.Error : Color.Success)">@context.Status</MudChip></MudTd>
-        <MudTd>
+        <MudTd Style="font-weight:600">@context.Total.ToString("N2")</MudTd>
+        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(context.Status == SaleStatus.Voided ? Color.Error : Color.Success)">@context.Status</MudChip></MudTd>
+        <MudTd Style="text-align:right">
             @if (Session.IsManager && context.Status == SaleStatus.Completed)
             {
-                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined" OnClick="() => Void(context)">Void</MudButton>
+                <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => Void(context)">Void</MudButton>
             }
         </MudTd>
     </RowTemplate>
+    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">No sales in this period.</MudText></NoRecordsContent>
     <PagerContent><MudTablePager /></PagerContent>
 </MudTable>
 
@@ -50,8 +55,7 @@
 
     private async Task Void(SaleDto s)
     {
-        try { await Api.VoidAsync(s.Id); await Load(); }
+        try { await Api.VoidAsync(s.Id); Snackbar.Add($"Sale {s.ReceiptNumber} voided", Severity.Warning); await Load(); }
         catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
     }
 }
-
