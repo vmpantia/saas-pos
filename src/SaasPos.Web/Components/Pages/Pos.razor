@@ -1,0 +1,103 @@
+@page "/pos"
+@inject ApiClient Api
+
+<h3>Point of Sale</h3>
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+
+<div class="row">
+    <div class="col-lg-7">
+        <input class="form-control mb-2" placeholder="Search name / SKU / scan barcode and press Enter" @bind="_term" @bind:event="oninput" @onkeydown="OnKey" />
+        <div class="list-group" style="max-height:60vh;overflow:auto">
+            @foreach (var p in Filtered)
+            {
+                <button class="list-group-item list-group-item-action d-flex justify-content-between" disabled="@(p.QuantityOnHand <= 0)" @onclick="() => Add(p)">
+                    <span>@p.Name <small class="text-muted">@p.Sku</small></span>
+                    <span>@p.Price.ToString("N2") <span class="badge @(p.IsLowStock ? "bg-danger" : "bg-secondary")">@p.QuantityOnHand</span></span>
+                </button>
+            }
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <h5>Cart</h5>
+        <table class="table table-sm">
+            @foreach (var l in _cart)
+            {
+                <tr>
+                    <td>@l.Product.Name</td>
+                    <td style="width:90px"><input type="number" min="1" max="@l.Product.QuantityOnHand" class="form-control form-control-sm" @bind="l.Quantity" /></td>
+                    <td class="text-end">@((l.Product.Price * l.Quantity).ToString("N2"))</td>
+                    <td><button class="btn btn-sm btn-link text-danger" @onclick="() => _cart.Remove(l)">✕</button></td>
+                </tr>
+            }
+        </table>
+        <div class="d-flex justify-content-between"><span>Discount</span><input type="number" min="0" step="0.01" class="form-control form-control-sm w-50" @bind="_discount" /></div>
+        <div class="d-flex justify-content-between fs-4 mt-2"><strong>Total</strong><strong>@Total.ToString("N2")</strong></div>
+        <select class="form-select my-2" @bind="_method">
+            @foreach (var m in Enum.GetValues<PaymentMethod>()) { <option value="@m">@m</option> }
+        </select>
+        <input type="number" min="0" step="0.01" class="form-control mb-2" placeholder="Amount tendered" @bind="_tendered" />
+        <button class="btn btn-success w-100" disabled="@(_cart.Count == 0 || _busy)" @onclick="Checkout">Charge</button>
+    </div>
+</div>
+
+@if (_receipt is not null)
+{
+    <div class="alert alert-success mt-3">
+        Sale <strong>@_receipt.ReceiptNumber</strong> complete. Total @_receipt.Total.ToString("N2"), change <strong>@_receipt.Change.ToString("N2")</strong>.
+    </div>
+}
+
+@code {
+    private class Line { public ProductDto Product { get; set; } = default!; public int Quantity { get; set; } = 1; }
+
+    private List<ProductDto> _products = [];
+    private readonly List<Line> _cart = [];
+    private string _term = "";
+    private decimal _discount, _tendered;
+    private PaymentMethod _method = PaymentMethod.Cash;
+    private SaleDto? _receipt;
+    private string? _error;
+    private bool _busy;
+
+    private IEnumerable<ProductDto> Filtered => _products.Where(p =>
+        string.IsNullOrWhiteSpace(_term) || p.Name.Contains(_term, StringComparison.OrdinalIgnoreCase)
+        || p.Sku.Contains(_term, StringComparison.OrdinalIgnoreCase) || p.Barcode == _term.Trim());
+
+    private decimal Total => Math.Max(0, _cart.Sum(l => l.Product.Price * l.Quantity) - _discount);
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        try { _products = await Api.ProductsAsync(null, true); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter") return;
+        var hit = _products.FirstOrDefault(p => p.Barcode == _term.Trim() || p.Sku.Equals(_term.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (hit is not null) { Add(hit); _term = ""; }
+    }
+
+    private void Add(ProductDto p)
+    {
+        var line = _cart.FirstOrDefault(l => l.Product.Id == p.Id);
+        if (line is null) _cart.Add(new Line { Product = p });
+        else if (line.Quantity < p.QuantityOnHand) line.Quantity++;
+    }
+
+    private async Task Checkout()
+    {
+        _busy = true; _error = null; _receipt = null;
+        try
+        {
+            _receipt = await Api.CheckoutAsync(new CheckoutRequest(
+                _cart.Select(l => new SaleLineRequest(l.Product.Id, l.Quantity)).ToList(), _method, _tendered, _discount));
+            _cart.Clear(); _discount = 0; _tendered = 0;
+            await Load();
+        }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+}

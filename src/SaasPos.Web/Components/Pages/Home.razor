@@ -1,0 +1,43 @@
+@page "/"
+@inject ApiClient Api
+@inject Session Session
+@inject NavigationManager Nav
+
+<h3>Dashboard</h3>
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+@if (_s is not null)
+{
+    <p class="text-muted">Last 30 days</p>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Sales</div><div class="fs-3">@_s.SaleCount</div></div></div>
+        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Revenue</div><div class="fs-3">@_s.Revenue.ToString("N2")</div></div></div>
+        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Gross profit</div><div class="fs-3">@_s.Profit.ToString("N2")</div></div></div>
+    </div>
+    <h5>Top products</h5>
+    <table class="table table-sm">
+        <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Revenue</th></tr></thead>
+        <tbody>@foreach (var t in _s.TopProducts) { <tr><td>@t.ProductName</td><td class="text-end">@t.QuantitySold</td><td class="text-end">@t.Revenue.ToString("N2")</td></tr> }</tbody>
+    </table>
+}
+@if (_low.Count > 0)
+{
+    <h5 class="mt-4 text-danger">Low stock</h5>
+    <ul>@foreach (var p in _low) { <li>@p.Name — @p.QuantityOnHand left (reorder at @p.ReorderLevel)</li> }</ul>
+}
+
+@code {
+    private SalesSummaryDto? _s;
+    private List<ProductDto> _low = [];
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsManager) { Nav.NavigateTo("pos"); return; }
+        try
+        {
+            _s = await Api.SummaryAsync(DateTime.UtcNow.Date.AddDays(-30), DateTime.UtcNow.AddDays(1));
+            _low = (await Api.ProductsAsync(null, true)).Where(p => p.IsLowStock).ToList();
+        }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+}

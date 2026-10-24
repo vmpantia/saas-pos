@@ -1,0 +1,64 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject Session Session
+@inject NavigationManager Nav
+
+@if (!_ready)
+{
+    <p class="p-4">Loading…</p>
+}
+else if (!Session.IsSignedIn)
+{
+    <div class="container" style="max-width:420px">@Body</div>
+}
+else
+{
+    <div class="page">
+        <div class="sidebar"><NavMenu /></div>
+        <main>
+            <div class="top-row px-4">
+                <span class="me-3">@Session.Current!.TenantName — @Session.Current.FullName (@Session.Current.Role)</span>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="SignOut">Sign out</button>
+            </div>
+            <article class="content px-4">@Body</article>
+        </main>
+    </div>
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _ready;
+
+    protected override void OnInitialized() => Session.Changed += OnChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await Session.RestoreAsync();
+        _ready = true;
+        Redirect();
+        StateHasChanged();
+    }
+
+    private void OnChanged()
+    {
+        if (_ready) Redirect();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Redirect()
+    {
+        var onLogin = Nav.ToBaseRelativePath(Nav.Uri).StartsWith("login", StringComparison.OrdinalIgnoreCase);
+        if (!Session.IsSignedIn && !onLogin) Nav.NavigateTo("login");
+        else if (Session.IsSignedIn && onLogin) Nav.NavigateTo("");
+    }
+
+    private Task SignOut() => Session.SignOutAsync();
+
+    public void Dispose() => Session.Changed -= OnChanged;
+}

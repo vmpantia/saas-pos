@@ -1,0 +1,104 @@
+@page "/products"
+@inject ApiClient Api
+
+<h3>Products</h3>
+@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+
+<div class="card card-body mb-3">
+    <h6>@(_editId is null ? "New product" : "Edit product")</h6>
+    <div class="row g-2">
+        <div class="col-md-2"><input class="form-control" placeholder="SKU" @bind="_f.Sku" /></div>
+        <div class="col-md-3"><input class="form-control" placeholder="Name" @bind="_f.Name" /></div>
+        <div class="col-md-2"><input class="form-control" placeholder="Barcode" @bind="_f.Barcode" /></div>
+        <div class="col-md-2">
+            <select class="form-select" @bind="_f.CategoryId">
+                <option value="@Guid.Empty">— category —</option>
+                @foreach (var c in _cats) { <option value="@c.Id">@c.Name</option> }
+            </select>
+        </div>
+        <div class="col-md-1"><input type="number" step="0.01" class="form-control" placeholder="Price" @bind="_f.Price" /></div>
+        <div class="col-md-1"><input type="number" step="0.01" class="form-control" placeholder="Cost" @bind="_f.Cost" /></div>
+        <div class="col-md-1"><input type="number" class="form-control" placeholder="Reorder" @bind="_f.ReorderLevel" /></div>
+        @if (_editId is null) { <div class="col-md-2"><input type="number" class="form-control" placeholder="Initial stock" @bind="_f.InitialStock" /></div> }
+        <div class="col-auto">
+            <button class="btn btn-primary" @onclick="Save">Save</button>
+            @if (_editId is not null) { <button class="btn btn-link" @onclick="Reset">Cancel</button> }
+        </div>
+    </div>
+    <div class="input-group mt-2" style="max-width:320px">
+        <input class="form-control" placeholder="New category" @bind="_newCat" />
+        <button class="btn btn-outline-secondary" @onclick="AddCategory">Add category</button>
+    </div>
+</div>
+
+<table class="table table-sm align-middle">
+    <thead><tr><th>SKU</th><th>Name</th><th class="text-end">Price</th><th class="text-end">Cost</th><th class="text-end">Stock</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var p in _items)
+    {
+        <tr class="@(p.IsActive ? "" : "text-muted")">
+            <td>@p.Sku</td><td>@p.Name</td>
+            <td class="text-end">@p.Price.ToString("N2")</td><td class="text-end">@p.Cost.ToString("N2")</td>
+            <td class="text-end">@p.QuantityOnHand @if (p.IsLowStock) { <span class="badge bg-danger">low</span> }</td>
+            <td>@(p.IsActive ? "Active" : "Inactive")</td>
+            <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" @onclick="() => Edit(p)">Edit</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => Toggle(p)">@(p.IsActive ? "Deactivate" : "Activate")</button>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+
+@code {
+    private class Form
+    {
+        public string Sku { get; set; } = ""; public string Name { get; set; } = ""; public string? Barcode { get; set; }
+        public Guid CategoryId { get; set; } public decimal Price { get; set; } public decimal Cost { get; set; }
+        public int ReorderLevel { get; set; } public int InitialStock { get; set; }
+    }
+
+    private List<ProductDto> _items = [];
+    private List<CategoryDto> _cats = [];
+    private Form _f = new();
+    private Guid? _editId;
+    private string _newCat = "";
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Run(Func<Task> action)
+    {
+        _error = null;
+        try { await action(); }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
+    }
+
+    private Task Load() => Run(async () => { _items = await Api.ProductsAsync(); _cats = await Api.CategoriesAsync(); });
+
+    private Task Save() => Run(async () =>
+    {
+        var r = new ProductRequest(_f.Sku, _f.Name, _f.Price, _f.Cost, _f.ReorderLevel, _f.Barcode,
+            _f.CategoryId == Guid.Empty ? null : _f.CategoryId, _f.InitialStock);
+        if (_editId is null) await Api.CreateProductAsync(r); else await Api.UpdateProductAsync(_editId.Value, r);
+        Reset();
+        await Load();
+    });
+
+    private void Edit(ProductDto p)
+    {
+        _editId = p.Id;
+        _f = new Form { Sku = p.Sku, Name = p.Name, Barcode = p.Barcode, CategoryId = p.CategoryId ?? Guid.Empty,
+            Price = p.Price, Cost = p.Cost, ReorderLevel = p.ReorderLevel };
+    }
+
+    private void Reset() { _editId = null; _f = new(); }
+
+    private Task Toggle(ProductDto p) => Run(async () => { await Api.SetActiveAsync(p.Id, !p.IsActive); await Load(); });
+
+    private Task AddCategory() => Run(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(_newCat)) return;
+        await Api.CreateCategoryAsync(_newCat); _newCat = ""; await Load();
+    });
+}
