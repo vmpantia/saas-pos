@@ -1,6 +1,6 @@
 # SaaS POS
 
-Multi-tenant POS + inventory. Clean Architecture, .NET 10, Blazor Server frontend.
+Multi-tenant POS + inventory. Clean Architecture, .NET 10, Blazor Server frontend using MudBlazor.
 
 ```
 src/SaasPos.Domain          Entities & business rules (Product stock, Sale totals/void). No dependencies.
@@ -25,3 +25,4 @@ Onboard a client: `POST /api/platform/tenants` with header `X-Provisioning-Key`.
 ## Production notes
 Set `Jwt:Key` (32+ chars) and `Provisioning:Key` via env vars/secrets; switch `ConnectionStrings:Default`
 to a production DB (swap the EF provider) and use migrations instead of `EnsureCreated`.
+

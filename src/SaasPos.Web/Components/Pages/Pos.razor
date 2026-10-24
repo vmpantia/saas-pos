@@ -1,51 +1,61 @@
 @page "/pos"
 @inject ApiClient Api
 
-<h3>Point of Sale</h3>
-@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+<MudText Typo="Typo.h5" Class="mb-3">Point of Sale</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
 
-<div class="row">
-    <div class="col-lg-7">
-        <input class="form-control mb-2" placeholder="Search name / SKU / scan barcode and press Enter" @bind="_term" @bind:event="oninput" @onkeydown="OnKey" />
-        <div class="list-group" style="max-height:60vh;overflow:auto">
-            @foreach (var p in Filtered)
-            {
-                <button class="list-group-item list-group-item-action d-flex justify-content-between" disabled="@(p.QuantityOnHand <= 0)" @onclick="() => Add(p)">
-                    <span>@p.Name <small class="text-muted">@p.Sku</small></span>
-                    <span>@p.Price.ToString("N2") <span class="badge @(p.IsLowStock ? "bg-danger" : "bg-secondary")">@p.QuantityOnHand</span></span>
-                </button>
-            }
-        </div>
-    </div>
-    <div class="col-lg-5">
-        <h5>Cart</h5>
-        <table class="table table-sm">
+<MudGrid>
+    <MudItem xs="12" lg="7">
+        <MudTextField @bind-Value="_term" Immediate="true" Label="Search name / SKU / scan barcode (Enter)"
+                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      OnKeyDown="OnKey" Class="mb-2" />
+        <MudPaper Style="max-height:62vh;overflow:auto">
+            <MudList T="string" Dense="true">
+                @foreach (var p in Filtered)
+                {
+                    <MudListItem OnClick="() => Add(p)" Disabled="@(p.QuantityOnHand <= 0)">
+                        <div class="d-flex justify-space-between align-center">
+                            <span>@p.Name <MudText Typo="Typo.caption" Inline="true">@p.Sku</MudText></span>
+                            <span>
+                                @p.Price.ToString("N2")
+                                <MudChip T="string" Size="Size.Small" Color="@(p.IsLowStock ? Color.Error : Color.Default)">@p.QuantityOnHand</MudChip>
+                            </span>
+                        </div>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" lg="5">
+        <MudPaper Class="pa-3">
+            <MudText Typo="Typo.h6">Cart</MudText>
             @foreach (var l in _cart)
             {
-                <tr>
-                    <td>@l.Product.Name</td>
-                    <td style="width:90px"><input type="number" min="1" max="@l.Product.QuantityOnHand" class="form-control form-control-sm" @bind="l.Quantity" /></td>
-                    <td class="text-end">@((l.Product.Price * l.Quantity).ToString("N2"))</td>
-                    <td><button class="btn btn-sm btn-link text-danger" @onclick="() => _cart.Remove(l)">✕</button></td>
-                </tr>
+                <div class="d-flex align-center my-1">
+                    <MudText Class="flex-grow-1">@l.Product.Name</MudText>
+                    <MudNumericField T="int" @bind-Value="l.Quantity" Min="1" Max="l.Product.QuantityOnHand" Variant="Variant.Outlined" Margin="Margin.Dense" Style="width:110px" />
+                    <MudText Class="mx-2" Style="min-width:70px;text-align:right">@((l.Product.Price * l.Quantity).ToString("N2"))</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error" OnClick="() => _cart.Remove(l)" />
+                </div>
             }
-        </table>
-        <div class="d-flex justify-content-between"><span>Discount</span><input type="number" min="0" step="0.01" class="form-control form-control-sm w-50" @bind="_discount" /></div>
-        <div class="d-flex justify-content-between fs-4 mt-2"><strong>Total</strong><strong>@Total.ToString("N2")</strong></div>
-        <select class="form-select my-2" @bind="_method">
-            @foreach (var m in Enum.GetValues<PaymentMethod>()) { <option value="@m">@m</option> }
-        </select>
-        <input type="number" min="0" step="0.01" class="form-control mb-2" placeholder="Amount tendered" @bind="_tendered" />
-        <button class="btn btn-success w-100" disabled="@(_cart.Count == 0 || _busy)" @onclick="Checkout">Charge</button>
-    </div>
-</div>
-
-@if (_receipt is not null)
-{
-    <div class="alert alert-success mt-3">
-        Sale <strong>@_receipt.ReceiptNumber</strong> complete. Total @_receipt.Total.ToString("N2"), change <strong>@_receipt.Change.ToString("N2")</strong>.
-    </div>
-}
+            <MudDivider Class="my-2" />
+            <MudNumericField T="decimal" @bind-Value="_discount" Min="0" Label="Discount" Variant="Variant.Outlined" Margin="Margin.Dense" />
+            <div class="d-flex justify-space-between my-2"><MudText Typo="Typo.h5">Total</MudText><MudText Typo="Typo.h5">@Total.ToString("N2")</MudText></div>
+            <MudSelect T="PaymentMethod" @bind-Value="_method" Label="Payment" Variant="Variant.Outlined" Margin="Margin.Dense">
+                @foreach (var m in Enum.GetValues<PaymentMethod>()) { <MudSelectItem T="PaymentMethod" Value="m">@m</MudSelectItem> }
+            </MudSelect>
+            <MudNumericField T="decimal" @bind-Value="_tendered" Min="0" Label="Amount tendered" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-2" />
+            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Size="Size.Large"
+                       Disabled="@(_cart.Count == 0 || _busy)" OnClick="Checkout">Charge</MudButton>
+        </MudPaper>
+        @if (_receipt is not null)
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-3">
+                Sale <strong>@_receipt.ReceiptNumber</strong> complete. Total @_receipt.Total.ToString("N2"), change <strong>@_receipt.Change.ToString("N2")</strong>.
+            </MudAlert>
+        }
+    </MudItem>
+</MudGrid>
 
 @code {
     private class Line { public ProductDto Product { get; set; } = default!; public int Quantity { get; set; } = 1; }
@@ -76,7 +86,8 @@
     private void OnKey(KeyboardEventArgs e)
     {
         if (e.Key != "Enter") return;
-        var hit = _products.FirstOrDefault(p => p.Barcode == _term.Trim() || p.Sku.Equals(_term.Trim(), StringComparison.OrdinalIgnoreCase));
+        var t = _term.Trim();
+        var hit = _products.FirstOrDefault(p => p.Barcode == t || p.Sku.Equals(t, StringComparison.OrdinalIgnoreCase));
         if (hit is not null) { Add(hit); _term = ""; }
     }
 

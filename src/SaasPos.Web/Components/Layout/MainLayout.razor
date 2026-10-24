@@ -3,26 +3,36 @@
 @inject Session Session
 @inject NavigationManager Nav
 
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 @if (!_ready)
 {
-    <p class="p-4">Loading…</p>
+    <MudProgressLinear Indeterminate="true" />
 }
 else if (!Session.IsSignedIn)
 {
-    <div class="container" style="max-width:420px">@Body</div>
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">@Body</MudContainer>
 }
 else
 {
-    <div class="page">
-        <div class="sidebar"><NavMenu /></div>
-        <main>
-            <div class="top-row px-4">
-                <span class="me-3">@Session.Current!.TenantName — @Session.Current.FullName (@Session.Current.Role)</span>
-                <button class="btn btn-sm btn-outline-secondary" @onclick="SignOut">Sign out</button>
-            </div>
-            <article class="content px-4">@Body</article>
-        </main>
-    </div>
+    <MudLayout>
+        <MudAppBar Elevation="1">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => _drawer = !_drawer" />
+            <MudText Typo="Typo.h6">@Session.Current!.TenantName</MudText>
+            <MudSpacer />
+            <MudText Class="mr-3">@Session.Current.FullName (@Session.Current.Role)</MudText>
+            <MudButton Color="Color.Inherit" Variant="Variant.Outlined" OnClick="SignOut">Sign out</MudButton>
+        </MudAppBar>
+        <MudDrawer @bind-Open="_drawer" Elevation="1" ClipMode="DrawerClipMode.Always">
+            <NavMenu />
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
+        </MudMainContent>
+    </MudLayout>
 }
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -33,6 +43,7 @@ else
 
 @code {
     private bool _ready;
+    private bool _drawer = true;
 
     protected override void OnInitialized() => Session.Changed += OnChanged;
 

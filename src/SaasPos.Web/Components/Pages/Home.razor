@@ -3,26 +3,34 @@
 @inject Session Session
 @inject NavigationManager Nav
 
-<h3>Dashboard</h3>
-@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+<MudText Typo="Typo.h5" Class="mb-1">Dashboard</MudText>
+<MudText Typo="Typo.body2" Class="mb-4">Last 30 days</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
 @if (_s is not null)
 {
-    <p class="text-muted">Last 30 days</p>
-    <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Sales</div><div class="fs-3">@_s.SaleCount</div></div></div>
-        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Revenue</div><div class="fs-3">@_s.Revenue.ToString("N2")</div></div></div>
-        <div class="col-md-4"><div class="card p-3"><div class="text-muted">Gross profit</div><div class="fs-3">@_s.Profit.ToString("N2")</div></div></div>
-    </div>
-    <h5>Top products</h5>
-    <table class="table table-sm">
-        <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Revenue</th></tr></thead>
-        <tbody>@foreach (var t in _s.TopProducts) { <tr><td>@t.ProductName</td><td class="text-end">@t.QuantitySold</td><td class="text-end">@t.Revenue.ToString("N2")</td></tr> }</tbody>
-    </table>
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Sales</MudText><MudText Typo="Typo.h4">@_s.SaleCount</MudText></MudPaper></MudItem>
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Revenue</MudText><MudText Typo="Typo.h4">@_s.Revenue.ToString("N2")</MudText></MudPaper></MudItem>
+        <MudItem xs="12" md="4"><MudPaper Class="pa-4"><MudText Typo="Typo.caption">Gross profit</MudText><MudText Typo="Typo.h4">@_s.Profit.ToString("N2")</MudText></MudPaper></MudItem>
+    </MudGrid>
+    <MudTable Items="_s.TopProducts" Dense="true" Class="mb-4">
+        <ToolBarContent><MudText Typo="Typo.h6">Top products</MudText></ToolBarContent>
+        <HeaderContent>
+            <MudTh>Product</MudTh><MudTh Style="text-align:right">Qty</MudTh><MudTh Style="text-align:right">Revenue</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ProductName</MudTd>
+            <MudTd Style="text-align:right">@context.QuantitySold</MudTd>
+            <MudTd Style="text-align:right">@context.Revenue.ToString("N2")</MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 @if (_low.Count > 0)
 {
-    <h5 class="mt-4 text-danger">Low stock</h5>
-    <ul>@foreach (var p in _low) { <li>@p.Name — @p.QuantityOnHand left (reorder at @p.ReorderLevel)</li> }</ul>
+    <MudAlert Severity="Severity.Warning">
+        <MudText Typo="Typo.subtitle2">Low stock</MudText>
+        @foreach (var p in _low) { <div>@p.Name — @p.QuantityOnHand left (reorder at @p.ReorderLevel)</div> }
+    </MudAlert>
 }
 
 @code {

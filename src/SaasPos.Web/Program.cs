@@ -1,3 +1,4 @@
+using MudBlazor.Services;
 using SaasPos.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -6,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddMudServices();
 builder.Services.AddScoped<SaasPos.Web.Services.Session>();
 builder.Services.AddHttpClient<SaasPos.Web.Services.ApiClient>(c =>
     c.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5094/"));
@@ -29,4 +31,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+
+
 

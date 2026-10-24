@@ -2,26 +2,27 @@
 @inject ApiClient Api
 @inject Session Session
 
-<h3 class="mt-5 mb-3">SaaS POS — Sign in</h3>
-<EditForm Model="_m" OnValidSubmit="Submit" FormName="login">
-    <div class="mb-2"><label class="form-label">Store code</label><InputText class="form-control" @bind-Value="_m.TenantCode" /></div>
-    <div class="mb-2"><label class="form-label">Username</label><InputText class="form-control" @bind-Value="_m.Username" /></div>
-    <div class="mb-3"><label class="form-label">Password</label><InputText type="password" class="form-control" @bind-Value="_m.Password" /></div>
-    @if (_error is not null) { <div class="alert alert-danger">@_error</div> }
-    <button class="btn btn-primary w-100" disabled="@_busy">Sign in</button>
-</EditForm>
+<MudPaper Class="pa-6">
+    <MudText Typo="Typo.h5" Class="mb-4">SaaS POS — Sign in</MudText>
+    <MudTextField @bind-Value="_tenant" Label="Store code" Variant="Variant.Outlined" Class="mb-2" />
+    <MudTextField @bind-Value="_user" Label="Username" Variant="Variant.Outlined" Class="mb-2" />
+    <MudTextField @bind-Value="_pass" Label="Password" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-3"
+                  OnKeyDown="OnKey" />
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="Submit">Sign in</MudButton>
+</MudPaper>
 
 @code {
-    private readonly Form _m = new();
+    private string _tenant = "", _user = "", _pass = "";
     private string? _error;
     private bool _busy;
 
-    private class Form { public string TenantCode { get; set; } = ""; public string Username { get; set; } = ""; public string Password { get; set; } = ""; }
+    private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await Submit(); }
 
     private async Task Submit()
     {
         _busy = true; _error = null;
-        try { await Session.SignInAsync(await Api.LoginAsync(new(_m.TenantCode, _m.Username, _m.Password))); }
+        try { await Session.SignInAsync(await Api.LoginAsync(new(_tenant, _user, _pass))); }
         catch (ApiException ex) { _error = ex.Message; }
         catch (HttpRequestException) { _error = "Cannot reach the server."; }
         finally { _busy = false; }

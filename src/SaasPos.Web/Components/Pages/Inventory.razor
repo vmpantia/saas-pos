@@ -1,48 +1,43 @@
 @page "/inventory"
 @inject ApiClient Api
 
-<h3>Inventory</h3>
-@if (_error is not null) { <div class="alert alert-danger">@_error</div> }
+<MudText Typo="Typo.h5" Class="mb-3">Inventory</MudText>
+@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert> }
 
-<table class="table table-sm align-middle">
-    <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Reorder at</th><th></th></tr></thead>
-    <tbody>
-    @foreach (var p in _items)
-    {
-        <tr class="@(p.IsLowStock ? "table-warning" : "")">
-            <td>@p.Sku</td><td>@p.Name</td><td class="text-end">@p.QuantityOnHand</td><td class="text-end">@p.ReorderLevel</td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" @onclick="() => Select(p)">Manage</button>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+<MudTable Items="_items" Dense="true" Hover="true" RowClassFunc="@((p, _) => p.IsLowStock ? "mud-theme-warning" : "")" Class="mb-4">
+    <HeaderContent>
+        <MudTh>SKU</MudTh><MudTh>Product</MudTh><MudTh>On hand</MudTh><MudTh>Reorder at</MudTh><MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Sku</MudTd><MudTd>@context.Name</MudTd><MudTd>@context.QuantityOnHand</MudTd><MudTd>@context.ReorderLevel</MudTd>
+        <MudTd><MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="() => Select(context)">Manage</MudButton></MudTd>
+    </RowTemplate>
+    <PagerContent><MudTablePager /></PagerContent>
+</MudTable>
 
 @if (_sel is not null)
 {
-    <div class="card card-body">
-        <h5>@_sel.Name — @_sel.QuantityOnHand on hand</h5>
-        <div class="row g-2 mb-3">
-            <div class="col-auto"><input type="number" min="1" class="form-control" placeholder="Receive qty" @bind="_receiveQty" /></div>
-            <div class="col-auto"><input class="form-control" placeholder="Reference (PO #)" @bind="_ref" /></div>
-            <div class="col-auto"><button class="btn btn-success" @onclick="Receive">Receive stock</button></div>
-        </div>
-        <div class="row g-2 mb-3">
-            <div class="col-auto"><input type="number" min="0" class="form-control" placeholder="Counted qty" @bind="_count" /></div>
-            <div class="col-auto"><input class="form-control" placeholder="Reason" @bind="_note" /></div>
-            <div class="col-auto"><button class="btn btn-warning" @onclick="Adjust">Set count</button></div>
-        </div>
-        <table class="table table-sm">
-            <thead><tr><th>When</th><th>Type</th><th class="text-end">Change</th><th class="text-end">Balance</th><th>Ref / note</th></tr></thead>
-            <tbody>
-            @foreach (var m in _moves)
-            {
-                <tr><td>@m.CreatedAtUtc.ToLocalTime().ToString("g")</td><td>@m.Type</td><td class="text-end">@m.QuantityChange</td><td class="text-end">@m.BalanceAfter</td><td>@m.Reference @m.Note</td></tr>
-            }
-            </tbody>
-        </table>
-    </div>
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-2">@_sel.Name — @_sel.QuantityOnHand on hand</MudText>
+        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+            <MudNumericField T="int" @bind-Value="_receiveQty" Min="0" Label="Receive qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
+            <MudTextField @bind-Value="_ref" Label="Reference (PO #)" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Receive">Receive stock</MudButton>
+        </MudStack>
+        <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+            <MudNumericField T="int" @bind-Value="_count" Min="0" Label="Counted qty" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:160px" />
+            <MudTextField @bind-Value="_note" Label="Reason" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:220px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Adjust">Set count</MudButton>
+        </MudStack>
+        <MudTable Items="_moves" Dense="true">
+            <HeaderContent><MudTh>When</MudTh><MudTh>Type</MudTh><MudTh>Change</MudTh><MudTh>Balance</MudTh><MudTh>Ref / note</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd><MudTd>@context.Type</MudTd>
+                <MudTd>@context.QuantityChange</MudTd><MudTd>@context.BalanceAfter</MudTd><MudTd>@context.Reference @context.Note</MudTd>
+            </RowTemplate>
+            <PagerContent><MudTablePager /></PagerContent>
+        </MudTable>
+    </MudPaper>
 }
 
 @code {
@@ -72,7 +67,7 @@
     private Task Receive() => Run(async () =>
     {
         _sel = await Api.ReceiveAsync(_sel!.Id, new ReceiveStockRequest(_receiveQty, _ref, null));
-        _receiveQty = 0; _ref = null;
+        _receiveQty = 0; _ref = null; _count = _sel.QuantityOnHand;
         await Refresh();
     });
 
