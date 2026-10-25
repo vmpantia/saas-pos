@@ -1,80 +1,92 @@
 @page "/inventory"
 @inject ApiClient Api
-@inject ISnackbar Snackbar
+@inject ToastService Toast
 
-<MudText Typo="Typo.h5" Class="page-title">Inventory</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Track stock levels and movements</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Inventory</h1>
+    <p class="text-sm text-muted-foreground">Track stock levels and movements</p>
+</div>
+@if (_error is not null) { <div class="alert alert-destructive mb-4">@_error</div> }
 
-<MudGrid>
-    <MudItem xs="12" lg="@(_sel is null ? 12 : 6)">
-        <MudTable Items="_items" Hover="true" Elevation="0" Filter="Match" Breakpoint="Breakpoint.Sm" OnRowClick="@((TableRowClickEventArgs<ProductDto> a) => Select(a.Item!))">
-            <ToolBarContent>
-                <MudTextField @bind-Value="_search" Placeholder="Search…" Adornment="Adornment.Start" Variant="Variant.Outlined" Margin="Margin.Dense"
-                              AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="max-width:280px" />
-                <MudSpacer />
-                <MudSwitch T="bool" @bind-Value="_lowOnly" Label="Low stock only" Color="Color.Warning" />
-            </ToolBarContent>
-            <HeaderContent><MudTh>Product</MudTh><MudTh Style="min-width:180px">Stock level</MudTh><MudTh>On hand</MudTh></HeaderContent>
-            <RowTemplate>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:600">@context.Name</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Sku</MudText>
-                </MudTd>
-                <MudTd><MudProgressLinear Value="@Level(context)" Max="100" Rounded="true" Color="@(context.QuantityOnHand == 0 ? Color.Error : context.IsLowStock ? Color.Warning : Color.Success)" /></MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(context.QuantityOnHand == 0 ? Color.Error : context.IsLowStock ? Color.Warning : Color.Success)">
-                        @context.QuantityOnHand / reorder @context.ReorderLevel
-                    </MudChip>
-                </MudTd>
-            </RowTemplate>
-            <PagerContent><MudTablePager /></PagerContent>
-        </MudTable>
-    </MudItem>
+<div class="@($"grid gap-6 {(_sel is null ? "" : "lg:grid-cols-2")}")">
+    <div class="card">
+        <div class="flex flex-wrap items-center gap-3 p-4">
+            <div class="relative w-full max-w-xs">
+                <span class="pointer-events-none absolute left-3 top-2.5 text-muted-foreground"><Icon Name="search" /></span>
+                <input class="input pl-9" placeholder="Search..." @bind="_search" @bind:event="oninput" />
+            </div>
+            <div class="flex-1"></div>
+            <label class="flex items-center gap-2 text-sm"><input type="checkbox" class="size-4 accent-primary" @bind="_lowOnly" />Low stock only</label>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="table">
+                <thead><tr><th>Product</th><th class="min-w-40">Stock level</th><th>On hand</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Visible)
+                    {
+                        <tr class="@(_sel?.Id == p.Id ? "bg-muted/50" : "") cursor-pointer" @onclick="() => Select(p)">
+                            <td><div class="font-medium">@p.Name</div><div class="text-xs text-muted-foreground">@p.Sku</div></td>
+                            <td><div class="@($"progress {Tone(p, "progress")}")"><div style="width:@Pct(p)%"></div></div></td>
+                            <td><span class="@($"badge {Tone(p, "badge")}")">@p.QuantityOnHand / @p.ReorderLevel</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (!Visible.Any()) { <div class="p-10 text-center text-sm text-muted-foreground">No products found.</div> }
+        </div>
+    </div>
 
     @if (_sel is not null)
     {
-        <MudItem xs="12" lg="6">
-            <div class="soft-card pa-5">
-                <div class="d-flex align-center mb-1">
-                    <div>
-                        <MudText Typo="Typo.h6">@_sel.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@_sel.Sku · @_sel.QuantityOnHand on hand</MudText>
-                    </div>
-                    <MudSpacer />
-                    <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="() => _sel = null" />
+        <div class="card self-start">
+            <div class="card-header flex-row items-start justify-between">
+                <div>
+                    <h2 class="card-title">@_sel.Name</h2>
+                    <p class="card-desc mt-1">@_sel.Sku · @_sel.QuantityOnHand on hand</p>
                 </div>
-                <MudDivider Class="my-3" />
-
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Receive stock</MudText>
-                <div class="d-flex gap-2 mb-4">
-                    <MudNumericField T="int" @bind-Value="_receiveQty" Min="0" Label="Quantity" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="max-width:130px" />
-                    <MudTextField @bind-Value="_ref" Label="Reference (PO #)" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="Receive">Receive</MudButton>
-                </div>
-
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Stock count</MudText>
-                <div class="d-flex gap-2 mb-4">
-                    <MudNumericField T="int" @bind-Value="_count" Min="0" Label="Counted" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" Style="max-width:130px" />
-                    <MudTextField @bind-Value="_note" Label="Reason" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Adjust">Set count</MudButton>
-                </div>
-
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Movement history</MudText>
-                <MudTable Items="_moves" Dense="true" Elevation="0">
-                    <HeaderContent><MudTh>When</MudTh><MudTh>Type</MudTh><MudTh>Change</MudTh><MudTh>Balance</MudTh></HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
-                        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@TypeColor(context.Type)">@context.Type</MudChip></MudTd>
-                        <MudTd Style="@($"font-weight:600;color:var(--mud-palette-{(context.QuantityChange < 0 ? "error" : "success")})")">@(context.QuantityChange > 0 ? "+" : "")@context.QuantityChange</MudTd>
-                        <MudTd>@context.BalanceAfter</MudTd>
-                    </RowTemplate>
-                    <PagerContent><MudTablePager /></PagerContent>
-                </MudTable>
+                <button class="btn btn-ghost btn-icon btn-sm" @onclick="() => _sel = null"><Icon Name="x" /></button>
             </div>
-        </MudItem>
+            <div class="card-body flex flex-col gap-6">
+                <div>
+                    <h3 class="mb-2 text-sm font-medium">Receive stock</h3>
+                    <div class="flex gap-2">
+                        <input type="number" min="0" class="input w-28" placeholder="Qty" @bind="_receiveQty" />
+                        <input class="input" placeholder="Reference (PO #)" @bind="_ref" />
+                        <button class="btn btn-default" @onclick="Receive">Receive</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="mb-2 text-sm font-medium">Stock count</h3>
+                    <div class="flex gap-2">
+                        <input type="number" min="0" class="input w-28" placeholder="Counted" @bind="_count" />
+                        <input class="input" placeholder="Reason" @bind="_note" />
+                        <button class="btn btn-outline" @onclick="Adjust">Set count</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="mb-2 text-sm font-medium">Movement history</h3>
+                    <div class="overflow-x-auto rounded-md border">
+                        <table class="table">
+                            <thead><tr><th>When</th><th>Type</th><th>Change</th><th>Balance</th></tr></thead>
+                            <tbody>
+                                @foreach (var m in _moves.Take(20))
+                                {
+                                    <tr>
+                                        <td class="text-muted-foreground">@m.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                                        <td><span class="badge badge-secondary">@m.Type</span></td>
+                                        <td class="@(m.QuantityChange < 0 ? "text-destructive" : "text-success") font-semibold">@(m.QuantityChange > 0 ? "+" : "")@m.QuantityChange</td>
+                                        <td>@m.BalanceAfter</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        @if (_moves.Count == 0) { <div class="p-6 text-center text-sm text-muted-foreground">No movements yet.</div> }
+                    </div>
+                </div>
+            </div>
+        </div>
     }
-</MudGrid>
+</div>
 
 @code {
     private List<ProductDto> _items = [];
@@ -85,23 +97,18 @@
     private string? _ref, _note, _error;
     private string _search = "";
 
-    private bool Match(ProductDto p) =>
+    private IEnumerable<ProductDto> Visible => _items.Where(p =>
         (!_lowOnly || p.IsLowStock) &&
-        (string.IsNullOrWhiteSpace(_search) || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase));
+        (string.IsNullOrWhiteSpace(_search) || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase)));
 
-    private static double Level(ProductDto p)
+    private static string Pct(ProductDto p)
     {
         var target = Math.Max(1, p.ReorderLevel * 3);
-        return Math.Min(100, p.QuantityOnHand * 100.0 / target);
+        return Math.Min(100, p.QuantityOnHand * 100.0 / target).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static Color TypeColor(StockMovementType t) => t switch
-    {
-        StockMovementType.Purchase => Color.Success,
-        StockMovementType.Sale => Color.Info,
-        StockMovementType.Return => Color.Secondary,
-        _ => Color.Warning
-    };
+    private static string Tone(ProductDto p, string prefix) =>
+        p.QuantityOnHand == 0 ? $"{prefix}-destructive" : p.IsLowStock ? $"{prefix}-warning" : $"{prefix}-success";
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -124,7 +131,7 @@
     {
         _sel = await Api.ReceiveAsync(_sel!.Id, new ReceiveStockRequest(_receiveQty, _ref, null));
         _receiveQty = 0; _ref = null; _count = _sel.QuantityOnHand;
-        Snackbar.Add("Stock received", Severity.Success);
+        Toast.Show("Stock received");
         await Refresh();
     });
 
@@ -132,7 +139,7 @@
     {
         _sel = await Api.AdjustAsync(_sel!.Id, new AdjustStockRequest(_count, _note));
         _note = null;
-        Snackbar.Add("Stock count updated", Severity.Success);
+        Toast.Show("Stock count updated");
         await Refresh();
     });
 

@@ -1,6 +1,6 @@
 # SaaS POS
 
-Multi-tenant POS + inventory. Clean Architecture, .NET 10, Blazor Server frontend using MudBlazor.
+Multi-tenant POS + inventory. Clean Architecture, .NET 10, Blazor Server frontend styled with Tailwind CSS (shadcn/ui look). Building the Web project runs `npm install` and the Tailwind build automatically, so Node.js is required (`dotnet build -p:SkipTailwind=true` skips it). For live CSS edits run `npm run css:watch` in `src/SaasPos.Web`.
 
 ```
 src/SaasPos.Domain          Entities & business rules (Product stock, Sale totals/void). No dependencies.

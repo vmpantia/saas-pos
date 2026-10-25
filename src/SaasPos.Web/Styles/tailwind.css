@@ -1,0 +1,146 @@
+@import "tailwindcss";
+@source "../Components";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.627 0.194 149.2);
+  --warning: oklch(0.769 0.188 70.08);
+  --ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html, body { height: 100%; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  button:not(:disabled) { cursor: pointer; }
+}
+
+@layer components {
+  .btn { @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50; }
+  .btn-default { @apply bg-primary text-primary-foreground shadow-xs hover:bg-primary/90; }
+  .btn-secondary { @apply bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80; }
+  .btn-outline { @apply border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground; }
+  .btn-ghost { @apply hover:bg-accent hover:text-accent-foreground; }
+  .btn-destructive { @apply bg-destructive text-white shadow-xs hover:bg-destructive/90; }
+  .btn-sm { @apply h-8 gap-1.5 px-3; }
+  .btn-lg { @apply h-11 px-6 text-base; }
+  .btn-icon { @apply size-9 px-0; }
+  .btn-icon.btn-sm { @apply size-8; }
+
+  .input { @apply h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50; }
+  select.input { @apply pr-8; }
+  .label { @apply mb-2 block text-sm font-medium leading-none; }
+
+  .card { @apply rounded-xl border bg-card text-card-foreground shadow-sm; }
+  .card-header { @apply flex flex-col gap-1 px-6 pt-6; }
+  .card-title { @apply font-semibold leading-none tracking-tight; }
+  .card-desc { @apply text-sm text-muted-foreground; }
+  .card-body { @apply p-6; }
+
+  .badge { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium; }
+  .badge-default { @apply border-transparent bg-primary text-primary-foreground; }
+  .badge-secondary { @apply border-transparent bg-secondary text-secondary-foreground; }
+  .badge-outline { @apply text-foreground; }
+  .badge-success { @apply border-success/30 bg-success/15 text-success; }
+  .badge-warning { @apply border-warning/30 bg-warning/15 text-warning; }
+  .badge-destructive { @apply border-destructive/30 bg-destructive/10 text-destructive; }
+
+  .alert { @apply flex items-start gap-2 rounded-lg border px-4 py-3 text-sm; }
+  .alert-destructive { @apply border-destructive/40 bg-destructive/5 text-destructive; }
+
+  .table { @apply w-full caption-bottom text-sm; }
+  .table th { @apply h-10 whitespace-nowrap px-3 text-left align-middle font-medium text-muted-foreground; }
+  .table td { @apply px-3 py-3 align-middle; }
+  .table tbody tr { @apply border-b transition-colors hover:bg-muted/50; }
+  .table tbody tr:last-child { @apply border-0; }
+  .table thead tr { @apply border-b; }
+
+  .progress { @apply h-2 w-full overflow-hidden rounded-full bg-primary/15; }
+  .progress > div { @apply h-full rounded-full bg-primary transition-all; }
+  .progress-success > div { @apply bg-success; }
+  .progress-warning > div { @apply bg-warning; }
+  .progress-destructive > div { @apply bg-destructive; }
+
+  .nav-link { @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground; }
+  .nav-link.active { @apply bg-accent text-accent-foreground; }
+
+  .segmented { @apply inline-flex w-full rounded-lg bg-muted p-1; }
+  .segmented button { @apply flex-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all; }
+  .segmented button.on { @apply bg-background text-foreground shadow-sm; }
+}
+
+#blazor-error-ui {
+  color-scheme: light only;
+  background: lightyellow;
+  bottom: 0;
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+  display: none;
+  left: 0;
+  padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+  position: fixed;
+  width: 100%;
+  z-index: 1000;
+  color: #000;
+}
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 0.75rem; top: 0.5rem; }

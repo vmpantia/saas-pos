@@ -2,32 +2,34 @@
 @inject ApiClient Api
 @inject Session Session
 
-<div class="auth-card soft-card">
-    <div class="auth-logo"><MudIcon Icon="@Icons.Material.Filled.PointOfSale" Style="color:#fff" Size="Size.Large" /></div>
-    <MudText Typo="Typo.h5" Class="page-title">Welcome back</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-6">Sign in to your store to continue</MudText>
-
-    <MudTextField @bind-Value="_tenant" Label="Store code" Variant="Variant.Outlined" Class="mb-3"
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storefront" />
-    <MudTextField @bind-Value="_user" Label="Username" Variant="Variant.Outlined" Class="mb-3"
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
-    <MudTextField @bind-Value="_pass" Label="Password" Variant="Variant.Outlined" Class="mb-4"
-                  InputType="@(_show ? InputType.Text : InputType.Password)" OnKeyDown="OnKey"
-                  Adornment="Adornment.End" AdornmentIcon="@(_show ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
-                  OnAdornmentClick="() => _show = !_show" />
-
-    @if (_error is not null) { <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mb-4">@_error</MudAlert> }
-
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Disabled="_busy" OnClick="Submit">
-        @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-        Sign in
-    </MudButton>
+<div class="card w-full max-w-sm shadow-lg">
+    <div class="card-header items-center pb-2 text-center">
+        <div class="mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Icon Name="cart" Class="size-6" /></div>
+        <h1 class="card-title text-xl">Welcome back</h1>
+        <p class="card-desc">Sign in to your store to continue</p>
+    </div>
+    <div class="card-body flex flex-col gap-4">
+        <div>
+            <label class="label" for="tenant">Store code</label>
+            <input id="tenant" class="input" @bind="_tenant" @bind:event="oninput" placeholder="demo" />
+        </div>
+        <div>
+            <label class="label" for="user">Username</label>
+            <input id="user" class="input" @bind="_user" @bind:event="oninput" />
+        </div>
+        <div>
+            <label class="label" for="pass">Password</label>
+            <input id="pass" type="password" class="input" @bind="_pass" @bind:event="oninput" @onkeydown="OnKey" />
+        </div>
+        @if (_error is not null) { <div class="alert alert-destructive"><Icon Name="alert" Class="mt-0.5 size-4 shrink-0" />@_error</div> }
+        <button class="btn btn-default btn-lg w-full" disabled="@_busy" @onclick="Submit">@(_busy ? "Signing in..." : "Sign in")</button>
+    </div>
 </div>
 
 @code {
     private string _tenant = "", _user = "", _pass = "";
     private string? _error;
-    private bool _busy, _show;
+    private bool _busy;
 
     private async Task OnKey(KeyboardEventArgs e) { if (e.Key == "Enter") await Submit(); }
 

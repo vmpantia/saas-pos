@@ -1,14 +1,14 @@
 @inject Session Session
 
-<MudNavMenu>
-    <div class="nav-caption">Sell</div>
-    <MudNavLink Href="pos" Icon="@Icons.Material.Filled.PointOfSale">Point of Sale</MudNavLink>
-    <MudNavLink Href="sales" Icon="@Icons.Material.Filled.Receipt">Sales</MudNavLink>
+<nav class="flex flex-col gap-1">
+    <div class="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Sell</div>
+    <NavLink class="nav-link" ActiveClass="active" href="pos"><Icon Name="cart" />Point of Sale</NavLink>
+    <NavLink class="nav-link" ActiveClass="active" href="sales"><Icon Name="receipt" />Sales</NavLink>
     @if (Session.IsManager)
     {
-        <div class="nav-caption">Manage</div>
-        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-        <MudNavLink Href="products" Icon="@Icons.Material.Filled.Category">Products</MudNavLink>
-        <MudNavLink Href="inventory" Icon="@Icons.Material.Filled.Warehouse">Inventory</MudNavLink>
+        <div class="px-3 pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Manage</div>
+        <NavLink class="nav-link" ActiveClass="active" href="" Match="NavLinkMatch.All"><Icon Name="dashboard" />Dashboard</NavLink>
+        <NavLink class="nav-link" ActiveClass="active" href="products"><Icon Name="package" />Products</NavLink>
+        <NavLink class="nav-link" ActiveClass="active" href="inventory"><Icon Name="warehouse" />Inventory</NavLink>
     }
-</MudNavMenu>
+</nav>

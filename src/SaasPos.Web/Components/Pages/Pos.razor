@@ -1,92 +1,94 @@
 @page "/pos"
 @inject ApiClient Api
-@inject ISnackbar Snackbar
+@inject ToastService Toast
 
-<MudText Typo="Typo.h5" Class="page-title mb-4">Point of Sale</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Point of Sale</h1>
+    <p class="text-sm text-muted-foreground">Tap a product or scan a barcode to start an order</p>
+</div>
+@if (_error is not null) { <div class="alert alert-destructive mb-4">@_error</div> }
 
-<MudGrid>
-    <MudItem xs="12" lg="8">
-        <MudTextField @bind-Value="_term" Immediate="true" Placeholder="Search name or SKU — press Enter to scan a barcode"
-                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      OnKeyDown="OnKey" Class="mb-4" />
-        <MudGrid Spacing="3">
+<div class="grid gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2">
+        <div class="relative mb-4">
+            <span class="pointer-events-none absolute left-3 top-2.5 text-muted-foreground"><Icon Name="search" /></span>
+            <input class="input pl-9" placeholder="Search name or SKU. Press Enter to scan a barcode" @bind="_term" @bind:event="oninput" @onkeydown="OnKey" />
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             @foreach (var p in Filtered)
             {
-                <MudItem xs="6" sm="4" xl="3">
-                    <div class="soft-card product-tile @(p.QuantityOnHand <= 0 ? "disabled" : "")" @onclick="() => Add(p)">
-                        <div class="d-flex align-center justify-space-between mb-3">
-                            <div class="product-avatar">@p.Name[..1].ToUpperInvariant()</div>
-                            <MudChip T="string" Size="Size.Small" Color="@(p.QuantityOnHand <= 0 ? Color.Error : p.IsLowStock ? Color.Warning : Color.Success)" Variant="Variant.Text">
-                                @(p.QuantityOnHand <= 0 ? "Out of stock" : $"{p.QuantityOnHand} in stock")
-                            </MudChip>
-                        </div>
-                        <MudText Typo="Typo.body1" Style="font-weight:600;line-height:1.25">@p.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@p.Sku</MudText>
-                        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">@p.Price.ToString("N2")</MudText>
-                    </div>
-                </MudItem>
+                var out_ = p.QuantityOnHand <= 0;
+                <button type="button" disabled="@out_" @onclick="() => Add(p)"
+                        class="card flex flex-col items-start gap-1 p-4 text-left transition hover:border-primary/40 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50">
+                    <span class="@($"badge {(out_ ? "badge-destructive" : p.IsLowStock ? "badge-warning" : "badge-secondary")}")">@(out_ ? "Out of stock" : $"{p.QuantityOnHand} in stock")</span>
+                    <span class="mt-2 line-clamp-2 text-sm font-medium leading-tight">@p.Name</span>
+                    <span class="text-xs text-muted-foreground">@p.Sku</span>
+                    <span class="mt-1 text-lg font-semibold">@p.Price.ToString("N2")</span>
+                </button>
             }
-        </MudGrid>
+        </div>
         @if (!Filtered.Any())
         {
-            <div class="soft-card pa-8 text-center">
-                <MudIcon Icon="@Icons.Material.Filled.Inventory2" Size="Size.Large" Color="Color.Secondary" />
-                <MudText Color="Color.Secondary" Class="mt-2">No products found.</MudText>
-            </div>
+            <div class="card flex flex-col items-center gap-2 p-10 text-muted-foreground"><Icon Name="inbox" Class="size-8" />No products found.</div>
         }
-    </MudItem>
+    </div>
 
-    <MudItem xs="12" lg="4">
-        <div class="soft-card pa-4 cart-panel">
-            <div class="d-flex align-center mb-2">
-                <MudText Typo="Typo.h6">Current order</MudText>
-                <MudSpacer />
-                @if (_cart.Count > 0) { <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => _cart.Clear()">Clear</MudButton> }
+    <div>
+        <div class="card sticky top-20">
+            <div class="card-header flex-row items-center justify-between">
+                <h2 class="card-title">Current order</h2>
+                @if (_cart.Count > 0) { <button class="btn btn-ghost btn-sm text-destructive" @onclick="() => _cart.Clear()">Clear</button> }
             </div>
-
-            @if (_cart.Count == 0)
-            {
-                <div class="text-center py-8">
-                    <MudIcon Icon="@Icons.Material.Filled.ShoppingCartCheckout" Size="Size.Large" Color="Color.Secondary" />
-                    <MudText Color="Color.Secondary" Class="mt-2">Tap a product to add it</MudText>
+            <div class="card-body flex flex-col gap-4">
+                @if (_cart.Count == 0)
+                {
+                    <div class="flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground"><Icon Name="cart" Class="size-8" />Cart is empty</div>
+                }
+                <div class="flex flex-col">
+                    @foreach (var l in _cart)
+                    {
+                        <div class="flex items-center gap-2 border-b py-3 last:border-0">
+                            <div class="min-w-0 flex-1">
+                                <div class="truncate text-sm font-medium">@l.Product.Name</div>
+                                <div class="text-xs text-muted-foreground">@l.Product.Price.ToString("N2") each</div>
+                            </div>
+                            <button class="btn btn-outline btn-icon btn-sm" @onclick="() => Change(l, -1)"><Icon Name="minus" /></button>
+                            <span class="w-6 text-center text-sm font-medium">@l.Quantity</span>
+                            <button class="btn btn-outline btn-icon btn-sm" @onclick="() => Change(l, 1)"><Icon Name="plus" /></button>
+                            <span class="w-16 text-right text-sm font-semibold">@((l.Product.Price * l.Quantity).ToString("N2"))</span>
+                        </div>
+                    }
                 </div>
-            }
-            @foreach (var l in _cart)
-            {
-                <div class="d-flex align-center py-2" style="border-bottom:1px solid var(--mud-palette-lines-default)">
-                    <div class="flex-grow-1">
-                        <MudText Typo="Typo.body2" Style="font-weight:600">@l.Product.Name</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@l.Product.Price.ToString("N2") each</MudText>
-                    </div>
-                    <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small" OnClick="() => Change(l, -1)" />
-                    <MudText Style="min-width:24px;text-align:center;font-weight:600">@l.Quantity</MudText>
-                    <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="() => Change(l, 1)" />
-                    <MudText Style="min-width:72px;text-align:right;font-weight:600">@((l.Product.Price * l.Quantity).ToString("N2"))</MudText>
-                </div>
-            }
 
-            <MudNumericField T="decimal" @bind-Value="_discount" Min="0" Label="Discount" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-4" HideSpinButtons="true" />
-            <div class="d-flex justify-space-between align-center my-3">
-                <MudText Typo="Typo.body1" Color="Color.Secondary">Total</MudText>
-                <span class="total-row">@Total.ToString("N2")</span>
+                <div>
+                    <label class="label">Discount</label>
+                    <input type="number" min="0" step="0.01" class="input" @bind="_discount" @bind:event="oninput" />
+                </div>
+                <div class="flex items-center justify-between border-t pt-4">
+                    <span class="text-muted-foreground">Total</span>
+                    <span class="text-2xl font-bold tracking-tight">@Total.ToString("N2")</span>
+                </div>
+
+                <div class="segmented">
+                    @foreach (var m in Enum.GetValues<PaymentMethod>())
+                    {
+                        var mm = m;
+                        <button type="button" class="@(_method == mm ? "on" : "")" @onclick="() => _method = mm">@mm</button>
+                    }
+                </div>
+                <div>
+                    <label class="label">Amount tendered</label>
+                    <input type="number" min="0" step="0.01" class="input" @bind="_tendered" @bind:event="oninput" />
+                    @if (_tendered > 0 && _tendered >= Total)
+                    {
+                        <p class="mt-2 text-sm text-success">Change due: <strong>@((_tendered - Total).ToString("N2"))</strong></p>
+                    }
+                </div>
+                <button class="btn btn-default btn-lg w-full" disabled="@(_cart.Count == 0 || _busy)" @onclick="Checkout">Charge @Total.ToString("N2")</button>
             </div>
-
-            <MudToggleGroup T="PaymentMethod" @bind-Value="_method" Color="Color.Primary" FixedContent="true" CheckMark="true" Class="mb-3" Style="width:100%">
-                @foreach (var m in Enum.GetValues<PaymentMethod>()) { <MudToggleItem Value="m" Text="@m.ToString()" /> }
-            </MudToggleGroup>
-            <MudNumericField T="decimal" @bind-Value="_tendered" Min="0" Label="Amount tendered" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
-            @if (_tendered > 0 && _tendered >= Total)
-            {
-                <MudText Typo="Typo.body2" Color="Color.Success" Class="mt-1">Change due: <strong>@((_tendered - Total).ToString("N2"))</strong></MudText>
-            }
-            <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Size="Size.Large" Class="mt-4"
-                       StartIcon="@Icons.Material.Filled.CheckCircle" Disabled="@(_cart.Count == 0 || _busy)" OnClick="Checkout">
-                Charge @Total.ToString("N2")
-            </MudButton>
         </div>
-    </MudItem>
-</MudGrid>
+    </div>
+</div>
 
 @code {
     private class Line { public ProductDto Product { get; set; } = default!; public int Quantity { get; set; } = 1; }
@@ -142,7 +144,7 @@
         {
             var r = await Api.CheckoutAsync(new CheckoutRequest(
                 _cart.Select(l => new SaleLineRequest(l.Product.Id, l.Quantity)).ToList(), _method, _tendered, _discount));
-            Snackbar.Add($"Sale {r.ReceiptNumber} complete — change {r.Change:N2}", Severity.Success);
+            Toast.Show($"Sale {r.ReceiptNumber} complete. Change {r.Change:N2}");
             _cart.Clear(); _discount = 0; _tendered = 0;
             await Load();
         }

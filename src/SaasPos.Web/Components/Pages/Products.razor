@@ -1,78 +1,81 @@
 @page "/products"
 @inject ApiClient Api
-@inject ISnackbar Snackbar
+@inject ToastService Toast
 
-<div class="d-flex align-center mb-4">
+<div class="mb-6 flex items-center justify-between gap-4">
     <div>
-        <MudText Typo="Typo.h5" Class="page-title">Products</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">@_items.Count products in your catalog</MudText>
+        <h1 class="text-2xl font-semibold tracking-tight">Products</h1>
+        <p class="text-sm text-muted-foreground">@_items.Count products in your catalog</p>
     </div>
-    <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="New">New product</MudButton>
+    <button class="btn btn-default" @onclick="New"><Icon Name="plus" />New product</button>
 </div>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
+@if (_error is not null) { <div class="alert alert-destructive mb-4">@_error</div> }
 
-<MudCollapse Expanded="_formOpen">
-    <div class="soft-card pa-5 mb-4">
-        <MudText Typo="Typo.h6" Class="mb-3">@(_editId is null ? "New product" : "Edit product")</MudText>
-        <MudGrid>
-            <MudItem xs="12" sm="4" md="2"><MudTextField @bind-Value="_f.Sku" Label="SKU" Variant="Variant.Outlined" /></MudItem>
-            <MudItem xs="12" sm="8" md="4"><MudTextField @bind-Value="_f.Name" Label="Name" Variant="Variant.Outlined" /></MudItem>
-            <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_f.Barcode" Label="Barcode" Variant="Variant.Outlined" /></MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudSelect T="Guid" @bind-Value="_f.CategoryId" Label="Category" Variant="Variant.Outlined">
-                    <MudSelectItem T="Guid" Value="Guid.Empty">— none —</MudSelectItem>
-                    @foreach (var c in _cats) { <MudSelectItem T="Guid" Value="c.Id">@c.Name</MudSelectItem> }
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="6" md="3"><MudNumericField T="decimal" @bind-Value="_f.Price" Min="0" Label="Price" Variant="Variant.Outlined" HideSpinButtons="true" /></MudItem>
-            <MudItem xs="6" md="3"><MudNumericField T="decimal" @bind-Value="_f.Cost" Min="0" Label="Cost" Variant="Variant.Outlined" HideSpinButtons="true" /></MudItem>
-            <MudItem xs="6" md="3"><MudNumericField T="int" @bind-Value="_f.ReorderLevel" Min="0" Label="Reorder level" Variant="Variant.Outlined" HideSpinButtons="true" /></MudItem>
-            @if (_editId is null)
-            {
-                <MudItem xs="6" md="3"><MudNumericField T="int" @bind-Value="_f.InitialStock" Min="0" Label="Initial stock" Variant="Variant.Outlined" HideSpinButtons="true" /></MudItem>
-            }
-        </MudGrid>
-        <div class="d-flex align-center mt-4">
-            <MudTextField @bind-Value="_newCat" Label="New category" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:240px" />
-            <MudButton Variant="Variant.Text" Class="ml-2" OnClick="AddCategory">Add category</MudButton>
-            <MudSpacer />
-            <MudButton Class="mr-2" OnClick="Close">Cancel</MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save product</MudButton>
+@if (_formOpen)
+{
+    <div class="card mb-6">
+        <div class="card-header"><h2 class="card-title">@(_editId is null ? "New product" : "Edit product")</h2></div>
+        <div class="card-body">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div><label class="label">SKU</label><input class="input" @bind="_f.Sku" /></div>
+                <div class="lg:col-span-2"><label class="label">Name</label><input class="input" @bind="_f.Name" /></div>
+                <div><label class="label">Barcode</label><input class="input" @bind="_f.Barcode" /></div>
+                <div>
+                    <label class="label">Category</label>
+                    <select class="input" @bind="_f.CategoryId">
+                        <option value="@Guid.Empty">None</option>
+                        @foreach (var c in _cats) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                </div>
+                <div><label class="label">Price</label><input type="number" min="0" step="0.01" class="input" @bind="_f.Price" /></div>
+                <div><label class="label">Cost</label><input type="number" min="0" step="0.01" class="input" @bind="_f.Cost" /></div>
+                <div><label class="label">Reorder level</label><input type="number" min="0" class="input" @bind="_f.ReorderLevel" /></div>
+                @if (_editId is null)
+                {
+                    <div><label class="label">Initial stock</label><input type="number" min="0" class="input" @bind="_f.InitialStock" /></div>
+                }
+            </div>
+            <div class="mt-6 flex flex-wrap items-center gap-2 border-t pt-4">
+                <input class="input max-w-52" placeholder="New category" @bind="_newCat" />
+                <button class="btn btn-outline" @onclick="AddCategory">Add category</button>
+                <div class="flex-1"></div>
+                <button class="btn btn-ghost" @onclick="Close">Cancel</button>
+                <button class="btn btn-default" @onclick="Save">Save product</button>
+            </div>
         </div>
     </div>
-</MudCollapse>
+}
 
-<MudTable Items="_items" Hover="true" Filter="Match" Elevation="0" Breakpoint="Breakpoint.Sm">
-    <ToolBarContent>
-        <MudTextField @bind-Value="_search" Placeholder="Search products…" Adornment="Adornment.Start" Variant="Variant.Outlined" Margin="Margin.Dense"
-                      AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Style="max-width:320px" />
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh>Product</MudTh><MudTh>Price</MudTh><MudTh>Cost</MudTh><MudTh>Stock</MudTh><MudTh>Status</MudTh><MudTh Style="text-align:right">Actions</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd>
-            <MudText Typo="Typo.body2" Style="font-weight:600">@context.Name</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Sku</MudText>
-        </MudTd>
-        <MudTd>@context.Price.ToString("N2")</MudTd>
-        <MudTd>@context.Cost.ToString("N2")</MudTd>
-        <MudTd>
-            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(context.QuantityOnHand == 0 ? Color.Error : context.IsLowStock ? Color.Warning : Color.Success)">@context.QuantityOnHand</MudChip>
-        </MudTd>
-        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Active" : "Inactive")</MudChip></MudTd>
-        <MudTd Style="text-align:right">
-            <MudTooltip Text="Edit"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="() => Edit(context)" /></MudTooltip>
-            <MudTooltip Text="@(context.IsActive ? "Deactivate" : "Activate")">
-                <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOn : Icons.Material.Filled.ToggleOff)" Size="Size.Small"
-                               Color="@(context.IsActive ? Color.Success : Color.Default)" OnClick="() => Toggle(context)" />
-            </MudTooltip>
-        </MudTd>
-    </RowTemplate>
-    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">No products yet — click “New product”.</MudText></NoRecordsContent>
-    <PagerContent><MudTablePager /></PagerContent>
-</MudTable>
+<div class="card">
+    <div class="p-4">
+        <div class="relative max-w-sm">
+            <span class="pointer-events-none absolute left-3 top-2.5 text-muted-foreground"><Icon Name="search" /></span>
+            <input class="input pl-9" placeholder="Search products..." @bind="_search" @bind:event="oninput" />
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="table">
+            <thead><tr><th>Product</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th class="text-right">Actions</th></tr></thead>
+            <tbody>
+                @foreach (var p in Visible)
+                {
+                    <tr>
+                        <td><div class="font-medium">@p.Name</div><div class="text-xs text-muted-foreground">@p.Sku</div></td>
+                        <td>@p.Price.ToString("N2")</td>
+                        <td class="text-muted-foreground">@p.Cost.ToString("N2")</td>
+                        <td><span class="@($"badge {(p.QuantityOnHand == 0 ? "badge-destructive" : p.IsLowStock ? "badge-warning" : "badge-success")}")">@p.QuantityOnHand</span></td>
+                        <td><span class="@($"badge {(p.IsActive ? "badge-outline" : "badge-secondary")}")">@(p.IsActive ? "Active" : "Inactive")</span></td>
+                        <td class="text-right whitespace-nowrap">
+                            <button class="btn btn-ghost btn-sm" @onclick="() => Edit(p)"><Icon Name="edit" />Edit</button>
+                            <button class="btn btn-ghost btn-sm" @onclick="() => Toggle(p)">@(p.IsActive ? "Deactivate" : "Activate")</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (!Visible.Any()) { <div class="p-10 text-center text-sm text-muted-foreground">No products found.</div> }
+    </div>
+</div>
 
 @code {
     private class Form
@@ -90,8 +93,8 @@
     private string _newCat = "", _search = "";
     private string? _error;
 
-    private bool Match(ProductDto p) => string.IsNullOrWhiteSpace(_search)
-        || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase);
+    private IEnumerable<ProductDto> Visible => _items.Where(p => string.IsNullOrWhiteSpace(_search)
+        || p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase) || p.Sku.Contains(_search, StringComparison.OrdinalIgnoreCase));
 
     protected override Task OnInitializedAsync() => Load();
 
@@ -112,7 +115,7 @@
         var r = new ProductRequest(_f.Sku, _f.Name, _f.Price, _f.Cost, _f.ReorderLevel, _f.Barcode,
             _f.CategoryId == Guid.Empty ? null : _f.CategoryId, _f.InitialStock);
         if (_editId is null) await Api.CreateProductAsync(r); else await Api.UpdateProductAsync(_editId.Value, r);
-        Snackbar.Add("Product saved", Severity.Success);
+        Toast.Show("Product saved");
         Close();
         await Load();
     });
@@ -130,7 +133,7 @@
     {
         if (string.IsNullOrWhiteSpace(_newCat)) return;
         await Api.CreateCategoryAsync(_newCat); _newCat = "";
-        Snackbar.Add("Category added", Severity.Success);
+        Toast.Show("Category added");
         await Load();
     });
 }

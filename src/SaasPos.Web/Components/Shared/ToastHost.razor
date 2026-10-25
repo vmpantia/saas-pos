@@ -1,0 +1,19 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+<div class="fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2">
+    @foreach (var t in Toasts.Items)
+    {
+        <div class="card flex items-start gap-3 p-4 shadow-lg" role="status">
+            <Icon Name="@(t.Kind == ToastKind.Success ? "check" : "alert")" Class="@($"mt-0.5 size-4 shrink-0 {(t.Kind == ToastKind.Success ? "text-success" : "text-destructive")}")" />
+            <p class="flex-1 text-sm">@t.Text</p>
+            <button class="text-muted-foreground hover:text-foreground" @onclick="() => Toasts.Dismiss(t.Id)"><Icon Name="x" /></button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.Changed += OnChanged;
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Toasts.Changed -= OnChanged;
+}

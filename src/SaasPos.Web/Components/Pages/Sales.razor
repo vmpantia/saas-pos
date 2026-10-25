@@ -1,44 +1,50 @@
 @page "/sales"
 @inject ApiClient Api
 @inject Session Session
-@inject ISnackbar Snackbar
+@inject ToastService Toast
 
-<MudText Typo="Typo.h5" Class="page-title">Sales</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Browse and manage completed transactions</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-3" ShowCloseIcon="true" CloseIconClicked="() => _error = null">@_error</MudAlert> }
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Sales</h1>
+    <p class="text-sm text-muted-foreground">Browse and manage completed transactions</p>
+</div>
+@if (_error is not null) { <div class="alert alert-destructive mb-4">@_error</div> }
 
-<div class="soft-card pa-3 mb-4 d-flex align-center flex-wrap" style="gap:12px">
-    <MudDatePicker @bind-Date="_from" Label="From" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px" />
-    <MudDatePicker @bind-Date="_to" Label="To" Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:200px" />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" OnClick="Load">Search</MudButton>
-    <MudSpacer />
-    <MudText Typo="Typo.body2" Color="Color.Secondary">@_sales.Count sales · <strong>@_sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total).ToString("N2")</strong></MudText>
+<div class="card mb-4 flex flex-wrap items-end gap-4 p-4">
+    <div><label class="label">From</label><input type="date" class="input" @bind="_from" /></div>
+    <div><label class="label">To</label><input type="date" class="input" @bind="_to" /></div>
+    <button class="btn btn-default" @onclick="Load"><Icon Name="search" />Search</button>
+    <div class="flex-1"></div>
+    <p class="text-sm text-muted-foreground">@_sales.Count sales · <strong class="text-foreground">@_sales.Where(s => s.Status == SaleStatus.Completed).Sum(s => s.Total).ToString("N2")</strong></p>
 </div>
 
-<MudTable Items="_sales" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
-    <HeaderContent>
-        <MudTh>Receipt</MudTh><MudTh>Date</MudTh><MudTh>Items</MudTh><MudTh>Payment</MudTh><MudTh>Total</MudTh><MudTh>Status</MudTh><MudTh></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd Style="font-weight:600">@context.ReceiptNumber</MudTd>
-        <MudTd>@context.CreatedAtUtc.ToLocalTime().ToString("g")</MudTd>
-        <MudTd><MudText Typo="Typo.caption" Color="Color.Secondary">@string.Join(", ", context.Items.Select(i => $"{i.Quantity} × {i.ProductName}"))</MudText></MudTd>
-        <MudTd>@context.PaymentMethod</MudTd>
-        <MudTd Style="font-weight:600">@context.Total.ToString("N2")</MudTd>
-        <MudTd><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(context.Status == SaleStatus.Voided ? Color.Error : Color.Success)">@context.Status</MudChip></MudTd>
-        <MudTd Style="text-align:right">
-            @if (Session.IsManager && context.Status == SaleStatus.Completed)
+<div class="card overflow-x-auto">
+    <table class="table">
+        <thead><tr><th>Receipt</th><th>Date</th><th>Items</th><th>Payment</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var s in _sales)
             {
-                <MudButton Size="Size.Small" Color="Color.Error" OnClick="() => Void(context)">Void</MudButton>
+                <tr>
+                    <td class="font-medium">@s.ReceiptNumber</td>
+                    <td class="text-muted-foreground">@s.CreatedAtUtc.ToLocalTime().ToString("g")</td>
+                    <td class="max-w-64 truncate text-xs text-muted-foreground">@string.Join(", ", s.Items.Select(i => $"{i.Quantity} x {i.ProductName}"))</td>
+                    <td>@s.PaymentMethod</td>
+                    <td class="font-semibold">@s.Total.ToString("N2")</td>
+                    <td><span class="@($"badge {(s.Status == SaleStatus.Voided ? "badge-destructive" : "badge-success")}")">@s.Status</span></td>
+                    <td class="text-right">
+                        @if (Session.IsManager && s.Status == SaleStatus.Completed)
+                        {
+                            <button class="btn btn-ghost btn-sm text-destructive" @onclick="() => Void(s)">Void</button>
+                        }
+                    </td>
+                </tr>
             }
-        </MudTd>
-    </RowTemplate>
-    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">No sales in this period.</MudText></NoRecordsContent>
-    <PagerContent><MudTablePager /></PagerContent>
-</MudTable>
+        </tbody>
+    </table>
+    @if (_sales.Count == 0) { <div class="p-10 text-center text-sm text-muted-foreground">No sales in this period.</div> }
+</div>
 
 @code {
-    private DateTime? _from = DateTime.Today, _to = DateTime.Today;
+    private DateTime _from = DateTime.Today, _to = DateTime.Today;
     private List<SaleDto> _sales = [];
     private string? _error;
 
@@ -47,15 +53,13 @@
     private async Task Load()
     {
         _error = null;
-        var from = (_from ?? DateTime.Today).Date;
-        var to = (_to ?? DateTime.Today).Date;
-        try { _sales = await Api.SalesAsync(from.ToUniversalTime(), to.AddDays(1).ToUniversalTime()); }
+        try { _sales = await Api.SalesAsync(_from.Date.ToUniversalTime(), _to.Date.AddDays(1).ToUniversalTime()); }
         catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
     }
 
     private async Task Void(SaleDto s)
     {
-        try { await Api.VoidAsync(s.Id); Snackbar.Add($"Sale {s.ReceiptNumber} voided", Severity.Warning); await Load(); }
+        try { await Api.VoidAsync(s.Id); Toast.Show($"Sale {s.ReceiptNumber} voided"); await Load(); }
         catch (Exception ex) when (ex is ApiException or HttpRequestException) { _error = ex.Message; }
     }
 }

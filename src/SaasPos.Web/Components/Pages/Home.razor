@@ -3,73 +3,73 @@
 @inject Session Session
 @inject NavigationManager Nav
 
-<MudText Typo="Typo.h5" Class="page-title">Dashboard</MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">Performance over the last 30 days</MudText>
-@if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert> }
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
+    <p class="text-sm text-muted-foreground">Performance over the last 30 days</p>
+</div>
+@if (_error is not null) { <div class="alert alert-destructive mb-4">@_error</div> }
 
 @if (_s is null && _error is null)
 {
-    <MudProgressLinear Indeterminate="true" />
+    <div class="h-1 w-full animate-pulse rounded bg-muted"></div>
 }
 else if (_s is not null)
 {
-    <MudGrid Class="mb-2">
-        <MudItem xs="12" md="4">
-            <div class="soft-card kpi">
-                <div class="kpi-icon" style="background:rgba(99,102,241,.12)"><MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Primary" /></div>
-                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Sales</MudText><div class="kpi-value">@_s.SaleCount</div></div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <div class="soft-card kpi">
-                <div class="kpi-icon" style="background:rgba(14,165,233,.12)"><MudIcon Icon="@Icons.Material.Filled.Payments" Color="Color.Secondary" /></div>
-                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Revenue</MudText><div class="kpi-value">@_s.Revenue.ToString("N2")</div></div>
-            </div>
-        </MudItem>
-        <MudItem xs="12" md="4">
-            <div class="soft-card kpi">
-                <div class="kpi-icon" style="background:rgba(16,185,129,.12)"><MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" /></div>
-                <div><MudText Typo="Typo.caption" Color="Color.Secondary">Gross profit</MudText><div class="kpi-value">@_s.Profit.ToString("N2")</div></div>
-            </div>
-        </MudItem>
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="card p-6">
+            <div class="flex items-center justify-between text-sm font-medium text-muted-foreground">Sales <Icon Name="receipt" /></div>
+            <div class="mt-2 text-3xl font-bold tracking-tight">@_s.SaleCount</div>
+        </div>
+        <div class="card p-6">
+            <div class="flex items-center justify-between text-sm font-medium text-muted-foreground">Revenue <Icon Name="wallet" /></div>
+            <div class="mt-2 text-3xl font-bold tracking-tight">@_s.Revenue.ToString("N2")</div>
+        </div>
+        <div class="card p-6">
+            <div class="flex items-center justify-between text-sm font-medium text-muted-foreground">Gross profit <Icon Name="trending" /></div>
+            <div class="mt-2 text-3xl font-bold tracking-tight">@_s.Profit.ToString("N2")</div>
+        </div>
+    </div>
 
-        <MudItem xs="12" lg="7">
-            <div class="soft-card pa-5">
-                <MudText Typo="Typo.h6" Class="mb-4">Top products</MudText>
-                @if (_s.TopProducts.Count == 0) { <MudText Color="Color.Secondary">No sales in this period yet.</MudText> }
+    <div class="mt-4 grid gap-4 lg:grid-cols-7">
+        <div class="card lg:col-span-4">
+            <div class="card-header"><h2 class="card-title">Top products</h2><p class="card-desc">Best sellers by revenue</p></div>
+            <div class="card-body flex flex-col gap-5">
+                @if (_s.TopProducts.Count == 0) { <p class="text-sm text-muted-foreground">No sales in this period yet.</p> }
                 @foreach (var t in _s.TopProducts)
                 {
-                    <div class="mb-4">
-                        <div class="d-flex justify-space-between mb-1">
-                            <MudText Typo="Typo.body2" Style="font-weight:600">@t.ProductName</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">@t.QuantitySold sold · @t.Revenue.ToString("N2")</MudText>
+                    <div>
+                        <div class="mb-2 flex justify-between text-sm">
+                            <span class="font-medium">@t.ProductName</span>
+                            <span class="text-muted-foreground">@t.QuantitySold sold · @t.Revenue.ToString("N2")</span>
                         </div>
-                        <MudProgressLinear Value="@Share(t)" Max="100" Color="Color.Primary" Rounded="true" Size="Size.Medium" />
+                        <div class="progress"><div style="width:@Pct(t)%"></div></div>
                     </div>
                 }
             </div>
-        </MudItem>
-        <MudItem xs="12" lg="5">
-            <div class="soft-card pa-5">
-                <div class="d-flex align-center mb-3">
-                    <MudText Typo="Typo.h6">Low stock</MudText>
-                    <MudSpacer />
-                    @if (_low.Count > 0) { <MudChip T="string" Size="Size.Small" Color="Color.Error">@_low.Count</MudChip> }
+        </div>
+        <div class="card lg:col-span-3">
+            <div class="card-header">
+                <div class="flex items-center justify-between">
+                    <h2 class="card-title">Low stock</h2>
+                    @if (_low.Count > 0) { <span class="badge badge-destructive">@_low.Count</span> }
                 </div>
-                @if (_low.Count == 0) { <MudText Color="Color.Secondary">All products are well stocked 🎉</MudText> }
+                <p class="card-desc">Items at or below reorder level</p>
+            </div>
+            <div class="card-body flex flex-col">
+                @if (_low.Count == 0) { <p class="text-sm text-muted-foreground">All products are well stocked.</p> }
                 @foreach (var p in _low)
                 {
-                    <div class="d-flex justify-space-between align-center py-2" style="border-bottom:1px solid var(--mud-palette-lines-default)">
+                    <div class="flex items-center justify-between border-b py-3 last:border-0">
                         <div>
-                            <MudText Typo="Typo.body2" Style="font-weight:600">@p.Name</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Reorder at @p.ReorderLevel</MudText>
+                            <div class="text-sm font-medium">@p.Name</div>
+                            <div class="text-xs text-muted-foreground">Reorder at @p.ReorderLevel</div>
                         </div>
-                        <MudChip T="string" Size="Size.Small" Color="@(p.QuantityOnHand == 0 ? Color.Error : Color.Warning)">@p.QuantityOnHand left</MudChip>
+                        <span class="@($"badge {(p.QuantityOnHand == 0 ? "badge-destructive" : "badge-warning")}")">@p.QuantityOnHand left</span>
                     </div>
                 }
             </div>
-        </MudItem>
-    </MudGrid>
+        </div>
+    </div>
 }
 
 @code {
@@ -82,6 +82,8 @@ else if (_s is not null)
         var max = _s!.TopProducts.Max(x => x.Revenue);
         return max == 0 ? 0 : (double)(t.Revenue / max * 100);
     }
+
+    private string Pct(TopProductDto t) => Share(t).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
     protected override async Task OnInitializedAsync()
     {

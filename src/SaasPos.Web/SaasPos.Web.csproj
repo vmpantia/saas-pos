@@ -4,15 +4,17 @@
     <ProjectReference Include="..\SaasPos.Application\SaasPos.Application.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MudBlazor" Version="9.11.0" />
-  </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
+
+  <!-- Tailwind CSS: regenerates wwwroot/app.css from Styles/tailwind.css before each build. -->
+  <Target Name="TailwindBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipTailwind)' != 'true' And Exists('package.json')">
+    <Exec Command="npm install --no-audit --no-fund" WorkingDirectory="$(MSBuildProjectDirectory)" Condition="!Exists('$(MSBuildProjectDirectory)/node_modules')" />
+    <Exec Command="npm run css:build" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
 
 </Project>
